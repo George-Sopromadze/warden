@@ -19,13 +19,13 @@ else
 fi
 
 LOG="${WARDEN_LOG_DIR:-/tmp}/warden-notify.log"
-echo "$(date -Is) $TEXT" >> "$LOG"
+echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) $TEXT" >> "$LOG"
 
 if [ -n "${TELEGRAM_BOT_TOKEN:-}" ] && [ -n "${TELEGRAM_USER_ID:-}" ]; then
   curl -sS -m 10 "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
     --data-urlencode "chat_id=${TELEGRAM_USER_ID}" \
     --data-urlencode "text=${TEXT}" \
     --data-urlencode "disable_web_page_preview=true" > /dev/null \
-    || echo "$(date -Is) SEND-FAILED $TEXT" >> "$LOG"
+    || echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) SEND-FAILED $TEXT" >> "$LOG"
 fi
 exit 0

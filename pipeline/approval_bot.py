@@ -22,8 +22,6 @@ import os
 import subprocess
 import sys
 import time
-import urllib.parse
-import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -50,10 +48,14 @@ API = f"https://api.telegram.org/bot{TOKEN}"
 
 
 def tg(method: str, **params):
-    data = urllib.parse.urlencode(params).encode()
-    req = urllib.request.Request(f"{API}/{method}", data=data)
-    with urllib.request.urlopen(req, timeout=60) as r:
-        return json.loads(r.read())
+    """Bot API call via curl (macOS system trust store, no Python SSL)."""
+    cmd = ["curl", "-sS", "-m", "70", f"{API}/{method}"]
+    for k, v in params.items():
+        cmd += ["--data-urlencode", f"{k}={v}"]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise RuntimeError(f"curl failed: {proc.stderr.strip()[:200]}")
+    return json.loads(proc.stdout)
 
 
 def log(msg: str) -> None:
@@ -169,8 +171,13 @@ def main() -> None:
     while True:
         try:
             resp = tg("getUpdates", offset=offset, timeout=50)
+            if not resp.get("ok", False):
+                log(f"getUpdates rejected: {str(resp)[:200]}")
+                time.sleep(5)
+                continue
             for upd in resp.get("result", []):
                 offset = upd["update_id"] + 1
+                log(f"received update {upd['update_id']}: {', '.join(k for k in upd if k != 'update_id')}")
                 if "callback_query" in upd:
                     handle_callback(upd["callback_query"])
                 # All other update types (messages, etc.) are deliberately
