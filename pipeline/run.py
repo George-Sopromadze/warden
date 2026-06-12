@@ -211,7 +211,22 @@ def _stub_agent(task_id: str, stage: str, artifact_path: Path) -> None:
     if stage == "implement":  # actually do the toy work
         wd = task_dir(task_id) / "workdir"
         wd.mkdir(exist_ok=True)
-        (wd / "README.md").write_text(f"# {task_id}\n\nCreated by WARDEN stub agent.\n")
+        target = "accounts.md" if os.environ.get("WARDEN_STUB_MISALIGN") else "README.md"
+        (wd / target).write_text(f"# {task_id}\n\nCreated by WARDEN stub agent.\n")
+        stubs["implement"]["files_changed"] = [target]
+    if stage == "plan" and os.environ.get("WARDEN_STUB_MISALIGN"):
+        # Mis-instructed coder scenario: plans (and builds) the WRONG file.
+        # Spec still says README.md — only the Goal Keeper can catch this,
+        # because plan and implement are internally consistent with each other.
+        stubs["plan"]["tasks"][0]["files"] = ["accounts.md"]
+    if stage == "spec":
+        # acceptance.md: the written contract (Phase 3). Same criteria as
+        # spec.json, in the human-readable form gate_spec now requires.
+        lines = ["# Acceptance criteria\n"]
+        for c in stubs["spec"]["acceptance_criteria"]:
+            lines.append(f"- **{c['id']}** ({c['type']}): {c['check']}")
+        (task_dir(task_id) / "artifacts" / "acceptance.md").write_text(
+            "\n".join(lines) + "\n")
     if os.environ.get("WARDEN_STUB_BREAK") == stage:
         # Deliberately invalid artifact — for testing schema-gate rejection
         # and the escalation path without an LLM in the loop.
@@ -306,7 +321,10 @@ def validate_artifact(task_id: str, stage: str) -> None:
 
 
 def run_gate(task_id: str, stage: str) -> None:
-    gate = STAGE_CONFIG[stage][3]
+    run_named_gate(task_id, stage, STAGE_CONFIG[stage][3])
+
+
+def run_named_gate(task_id: str, stage: str, gate: str) -> None:
     proc = subprocess.run(
         [str(GATES_DIR / gate), str(task_dir(task_id))],
         capture_output=True, text=True,
@@ -336,8 +354,94 @@ def commit_artifact(task_id: str, stage: str) -> None:
 
 
 # ----------------------------------------------------------------------------
-# Workdir versioning (Phase 2): checkpoints, diff hashing, rollback
+# Goal Keeper (Phase 3): judges against the written contract, never fixes
 # ----------------------------------------------------------------------------
+
+GOALKEEPER_STAGES = {"plan", "implement", "test", "review"}  # agent stages after spec
+
+
+def run_goalkeeper(task_id: str, stage: str, mode: str) -> dict:
+    """Run after a stage's gate passes. on_track: false => StageFailure, which
+    flows into the normal Phase 2 retry/escalation machinery. Returns usage."""
+    out_path = task_dir(task_id) / "artifacts" / f"goalkeeper-{stage}.json"
+    usage = {}
+
+    if mode == "stub":
+        _stub_goalkeeper(task_id, stage, out_path)
+    else:
+        rules = (AGENTS_DIR / "goalkeeper.md").read_text()
+        task_desc = (task_dir(task_id) / "task.md").read_text()
+        spec = (task_dir(task_id) / "artifacts" / "spec.json").read_text()
+        latest = (task_dir(task_id) / "artifacts" / STAGE_CONFIG[stage][1]).read_text()
+        prompt = (
+            f"Goal Keeper check after stage: {stage}\n\n"
+            f"## Original task\n{task_desc}\n\n"
+            f"## Acceptance criteria (from spec.json)\n{spec}\n\n"
+            f"## Latest artifact\n{latest}\n\n"
+            f"Write your verdict as JSON matching schemas/goalkeeper.schema.json "
+            f"to:\n{out_path}\n"
+            f"Evaluate ONLY judgment criteria and overall goal alignment."
+        )
+        cmd = ["claude", "-p", prompt,
+               "--append-system-prompt", rules,
+               "--output-format", "json"]
+        gk_model = os.environ.get("WARDEN_GK_MODEL")  # e.g. "haiku" — cheap model
+        if gk_model:
+            cmd += ["--model", gk_model]
+        proc = subprocess.run(cmd, capture_output=True, text=True,
+                              cwd=task_dir(task_id))
+        usage = _extract_usage(proc.stdout)
+        if proc.returncode != 0 or not out_path.exists():
+            raise StageFailure(f"goal keeper produced no verdict after '{stage}'")
+
+    try:
+        v = json.loads(out_path.read_text())
+    except json.JSONDecodeError as e:
+        raise StageFailure(f"goal keeper verdict is not valid JSON: {e}")
+    schema = json.loads((SCHEMAS_DIR / "goalkeeper.schema.json").read_text())
+    try:
+        if jsonschema is not None:
+            jsonschema.validate(v, schema)
+        else:
+            _mini_validate(v, schema)
+    except Exception as e:
+        raise StageFailure(f"goal keeper verdict failed schema: {e}")
+
+    log_event(task_id, "goalkeeper", {"stage": stage, **v})
+    if not v["on_track"]:
+        raise StageFailure(
+            f"goal keeper: off track after '{stage}' — violated: "
+            f"{', '.join(v['violated_criteria']) or 'unspecified'} | {v['reasoning']}")
+    return usage
+
+
+def _stub_goalkeeper(task_id: str, stage: str, out_path: Path) -> None:
+    """Deterministic alignment check: do the files the plan/implement artifacts
+    touch stay within the spec's declared scope? A real (cheap-model) Goal
+    Keeper replaces this in claude mode; the wiring is identical."""
+    spec = json.loads((task_dir(task_id) / "artifacts" / "spec.json").read_text())
+    scope = set(spec.get("scope", []))
+    touched: set = set()
+    if stage == "plan":
+        plan = json.loads((task_dir(task_id) / "artifacts" / "plan.json").read_text())
+        touched = {f for t in plan["tasks"] for f in t["files"]}
+    elif stage == "implement":
+        impl = json.loads((task_dir(task_id) / "artifacts" / "implement.json").read_text())
+        touched = set(impl["files_changed"])
+    out_of_scope = sorted(touched - scope)
+    verdict_obj = {
+        "on_track": not out_of_scope,
+        "violated_criteria": (
+            [f"scope: {f} is not in the spec's declared scope {sorted(scope)}"
+             for f in out_of_scope]),
+        "reasoning": ("all touched files are within the declared scope"
+                      if not out_of_scope else
+                      "the work has drifted from the spec's declared scope"),
+    }
+    atomic_write_json(out_path, verdict_obj)
+
+
+
 
 def _wgit(task_id: str, *args: str) -> subprocess.CompletedProcess:
     return subprocess.run(["git", *args], cwd=task_dir(task_id) / "workdir",
@@ -399,6 +503,7 @@ def escalate(task_id: str, reason: str) -> None:
 
     context = {
         "reason": reason,
+        "last_failure": state["stages"].get(state["stage"], {}).get("last_failure"),
         "stage": state["stage"],
         "attempts": state["stages"].get(state["stage"], {}).get("attempts"),
         "budget": state.get("budget"),
@@ -484,7 +589,18 @@ def cmd_run(task_id: str, agent_mode: str) -> None:
                 save_state(task_id, state)
             validate_artifact(task_id, stage)
             run_gate(task_id, stage)
+            if stage == "test":
+                # Phase 3: executable acceptance criteria, proved by script.
+                run_named_gate(task_id, stage, "gate_acceptance.sh")
+            if stage in GOALKEEPER_STAGES:
+                # Phase 3: judgment criteria + goal alignment, judged by the
+                # Goal Keeper. Never re-checks what scripts above proved.
+                gk_usage = run_goalkeeper(task_id, stage, agent_mode)
+                u = gk_usage.get("usage", {})
+                budget["tokens_spent"] += u.get("input_tokens", 0) + u.get("output_tokens", 0)
+                save_state(task_id, state)
         except StageFailure as e:
+            ss["last_failure"] = str(e)  # surfaces in escalation context
             log_event(task_id, "stage_failed",
                       {"stage": stage, "attempt": attempt, "reason": str(e)})
 

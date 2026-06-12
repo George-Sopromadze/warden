@@ -14,7 +14,7 @@ n_total=$(json_get "$SPEC" 'len(d["acceptance_criteria"])')
 
 [ "$n_total" -ge 1 ] || verdict gate_spec fail "no acceptance criteria"
 [ "$n_exec" -ge 1 ]  || verdict gate_spec fail "no executable acceptance criteria"
-# Phase 3 tightening point: also require acceptance.md
-# require_file gate_spec "$TASK_DIR/artifacts/acceptance.md"
+# Phase 3: acceptance.md is a hard requirement — no criteria file, no spec.
+require_file gate_spec "$TASK_DIR/artifacts/acceptance.md"
 
 verdict gate_spec pass "$n_total criteria ($n_exec executable)"
