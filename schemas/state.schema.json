@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WARDEN task state",
+  "type": "object",
+  "required": ["task_id", "stage", "status", "stages"],
+  "additionalProperties": false,
+  "properties": {
+    "task_id": { "type": "string" },
+    "stage": { "enum": ["spec", "plan", "implement", "test", "review", "approve", "merge", "done"] },
+    "status": { "enum": ["pending", "running", "awaiting_approval", "escalated", "done"] },
+    "stages": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["attempts", "max_attempts"],
+        "properties": {
+          "attempts": { "type": "integer", "minimum": 0 },
+          "max_attempts": { "type": "integer", "minimum": 1 },
+          "last_diff_hash": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_total_attempts": { "type": "integer" },
+        "max_token_spend": { "type": "integer" },
+        "total_attempts": { "type": "integer" },
+        "tokens_spent": { "type": "integer" }
+      }
+    }
+  }
+}

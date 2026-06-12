@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WARDEN Goal Keeper verdict (Phase 3)",
+  "type": "object",
+  "required": ["on_track", "violated_criteria", "reasoning"],
+  "additionalProperties": false,
+  "properties": {
+    "on_track": { "type": "boolean" },
+    "violated_criteria": { "type": "array", "items": { "type": "string" } },
+    "reasoning": { "type": "string" }
+  }
+}

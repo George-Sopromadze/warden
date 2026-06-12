@@ -1,0 +1,48 @@
+{
+  "task_id": "task-001",
+  "stage": "done",
+  "status": "done",
+  "stages": {
+    "spec": {
+      "attempts": 1,
+      "max_attempts": 3,
+      "last_diff_hash": null
+    },
+    "plan": {
+      "attempts": 1,
+      "max_attempts": 3,
+      "last_diff_hash": null
+    },
+    "implement": {
+      "attempts": 1,
+      "max_attempts": 3,
+      "last_diff_hash": null
+    },
+    "test": {
+      "attempts": 1,
+      "max_attempts": 3,
+      "last_diff_hash": null
+    },
+    "review": {
+      "attempts": 1,
+      "max_attempts": 3,
+      "last_diff_hash": null
+    },
+    "approve": {
+      "attempts": 1,
+      "max_attempts": 3,
+      "last_diff_hash": null
+    },
+    "merge": {
+      "attempts": 1,
+      "max_attempts": 3,
+      "last_diff_hash": null
+    }
+  },
+  "budget": {
+    "max_total_attempts": 15,
+    "max_token_spend": 2000000,
+    "total_attempts": 7,
+    "tokens_spent": 0
+  }
+}

@@ -1,0 +1,10 @@
+{"ts": "2026-06-12T20:48:00+0100", "event": "created", "description": "break test"}
+{"ts": "2026-06-12T20:48:00+0100", "event": "stage_start", "stage": "spec", "attempt": 1}
+{"ts": "2026-06-12T20:48:00+0100", "event": "agent_message", "stage": "spec", "agent": "stub"}
+{"ts": "2026-06-12T20:48:00+0100", "event": "schema_valid", "stage": "spec", "artifact": "spec.json"}
+{"ts": "2026-06-12T20:48:00+0100", "event": "gate_result", "stage": "spec", "gate": "gate_spec", "pass": true, "reason": "2 criteria (1 executable)", "exit": 0}
+{"ts": "2026-06-12T20:48:00+0100", "event": "transition", "from": "spec", "to": "plan"}
+{"ts": "2026-06-12T20:48:00+0100", "event": "stage_start", "stage": "plan", "attempt": 1}
+{"ts": "2026-06-12T20:48:00+0100", "event": "agent_message", "stage": "plan", "agent": "stub"}
+{"ts": "2026-06-12T20:48:00+0100", "event": "stage_failed", "stage": "plan", "reason": "schema violation in plan.json: $: missing required key 'tasks'"}
+{"ts": "2026-06-12T20:48:00+0100", "event": "escalation", "reason": "stage 'plan' failed: schema violation in plan.json: $: missing required key 'tasks'"}

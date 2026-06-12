@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WARDEN plan artifact",
+  "type": "object",
+  "required": ["tasks"],
+  "additionalProperties": false,
+  "properties": {
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "description", "files", "depends_on"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^T-[0-9]+$" },
+          "description": { "type": "string", "minLength": 5 },
+          "files": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+          "depends_on": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "flags": { "type": "array", "items": { "type": "string" } }
+  }
+}

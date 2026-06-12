@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WARDEN review artifact",
+  "type": "object",
+  "required": ["verdict", "findings", "blocking"],
+  "additionalProperties": false,
+  "properties": {
+    "verdict": { "enum": ["approve", "request_changes"] },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "description"],
+        "additionalProperties": false,
+        "properties": {
+          "severity": { "enum": ["info", "minor", "blocking"] },
+          "description": { "type": "string", "minLength": 5 },
+          "violated_criterion": { "type": "string" }
+        }
+      }
+    },
+    "blocking": { "type": "boolean" },
+    "flags": { "type": "array", "items": { "type": "string" } }
+  }
+}
