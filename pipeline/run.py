@@ -113,8 +113,9 @@ def log_event(task_id: str, event_type: str, payload: dict) -> None:
 # Agents
 # ----------------------------------------------------------------------------
 
-def run_agent(task_id: str, stage: str, role: str, mode: str) -> None:
-    """Produce the stage artifact, either via Claude Code headless or a stub."""
+def run_agent(task_id: str, stage: str, role: str, mode: str) -> dict:
+    """Produce the stage artifact via Claude Code headless or a stub.
+    Returns a usage dict (empty for stub) for the caller to add to the budget."""
     artifact_name = STAGE_CONFIG[stage][1]
     artifact_path = task_dir(task_id) / "artifacts" / artifact_name
     artifact_path.parent.mkdir(parents=True, exist_ok=True)
@@ -122,7 +123,7 @@ def run_agent(task_id: str, stage: str, role: str, mode: str) -> None:
     if mode == "stub":
         _stub_agent(task_id, stage, artifact_path)
         log_event(task_id, "agent_message", {"stage": stage, "agent": "stub"})
-        return
+        return {}
 
     rules = (AGENTS_DIR / f"{role}.md").read_text()
     task_desc = (task_dir(task_id) / "task.md").read_text()
@@ -156,9 +157,10 @@ def run_agent(task_id: str, stage: str, role: str, mode: str) -> None:
         "usage": usage,
     })
     if usage:
-        _accumulate_tokens(task_id, usage)
+        pass  # caller adds to budget and saves state (single writer, no race)
     if proc.returncode != 0:
         raise StageFailure(f"agent exited {proc.returncode}")
+    return usage
 
 
 def _extract_usage(stdout: str) -> dict:
@@ -169,16 +171,6 @@ def _extract_usage(stdout: str) -> dict:
                 if k in data}
     except (json.JSONDecodeError, TypeError):
         return {}
-
-
-def _accumulate_tokens(task_id: str, usage: dict) -> None:
-    state = load_state(task_id)
-    budget = state.setdefault("budget", {})
-    u = usage.get("usage", {})
-    spent = u.get("input_tokens", 0) + u.get("output_tokens", 0)
-    budget["tokens_spent"] = budget.get("tokens_spent", 0) + spent
-    save_state(task_id, state)
-    # TODO(phase2): if tokens_spent > max_token_spend -> escalate()
 
 
 def _prior_artifacts_summary(task_id: str, stage: str) -> str:
@@ -344,18 +336,82 @@ def commit_artifact(task_id: str, stage: str) -> None:
 
 
 # ----------------------------------------------------------------------------
-# Escalation (Phase 2 fills this out; the call sites exist now)
+# Workdir versioning (Phase 2): checkpoints, diff hashing, rollback
+# ----------------------------------------------------------------------------
+
+def _wgit(task_id: str, *args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", *args], cwd=task_dir(task_id) / "workdir",
+                          capture_output=True, text=True)
+
+
+def workdir_is_repo(task_id: str) -> bool:
+    return (task_dir(task_id) / "workdir" / ".git").exists()
+
+
+def init_workdir_repo(task_id: str) -> str:
+    """Each task workdir is its own git repo, so rollback has a precise target."""
+    _wgit(task_id, "init", "-q")
+    _wgit(task_id, "config", "user.email", "warden@local")
+    _wgit(task_id, "config", "user.name", "warden")
+    _wgit(task_id, "commit", "--allow-empty", "-q", "-m", "warden: task created")
+    return _wgit(task_id, "rev-parse", "HEAD").stdout.strip()
+
+
+def checkpoint_workdir(task_id: str, stage: str) -> str | None:
+    """Commit the workdir after a passed stage; returns the new last-good commit."""
+    if not workdir_is_repo(task_id):
+        return None
+    _wgit(task_id, "add", "-A")
+    _wgit(task_id, "commit", "-q", "--allow-empty", "-m",
+          f"warden checkpoint: {stage} passed")
+    return _wgit(task_id, "rev-parse", "HEAD").stdout.strip()
+
+
+def workdir_diff_hash(task_id: str) -> str | None:
+    """Hash of all uncommitted workdir changes (vs the last good checkpoint).
+    Two failed implement attempts with the same hash = the agent is looping."""
+    if not workdir_is_repo(task_id):
+        return None
+    _wgit(task_id, "add", "-A")  # stage everything so new files count too
+    diff = _wgit(task_id, "diff", "--cached").stdout
+    return hashlib.sha256(diff.encode()).hexdigest()
+
+
+def rollback_workdir(task_id: str, commit: str | None) -> bool:
+    """Hard-reset the workdir to the last good checkpoint and drop strays."""
+    if not workdir_is_repo(task_id) or not commit:
+        return False
+    _wgit(task_id, "reset", "-q", "--hard", commit)
+    _wgit(task_id, "clean", "-fdq")
+    return True
+
+
+# ----------------------------------------------------------------------------
+# Escalation (Phase 2): halt, roll back, record full failure context
 # ----------------------------------------------------------------------------
 
 def escalate(task_id: str, reason: str) -> None:
     state = load_state(task_id)
     state["status"] = "escalated"
     save_state(task_id, state)
-    log_event(task_id, "escalation", {"reason": reason})
-    (task_dir(task_id) / "NEEDS_HUMAN").write_text(reason + "\n")
-    # TODO(phase2): roll back task branch to last good commit
-    # TODO(phase4): hooks/notify.sh -> Telegram
-    print(f"[warden] ESCALATED {task_id}: {reason}", file=sys.stderr)
+
+    rolled_back = rollback_workdir(task_id, state.get("last_good_commit"))
+
+    context = {
+        "reason": reason,
+        "stage": state["stage"],
+        "attempts": state["stages"].get(state["stage"], {}).get("attempts"),
+        "budget": state.get("budget"),
+        "rolled_back_to": state.get("last_good_commit") if rolled_back else None,
+        "ts": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+    }
+    atomic_write_json(task_dir(task_id) / "escalation.json", context)
+    log_event(task_id, "escalation", context)
+    (task_dir(task_id) / "NEEDS_HUMAN").write_text(
+        f"{reason}\nFull context: escalation.json | event trail: run.jsonl\n")
+    # TODO(phase4): hooks/notify.sh -> Telegram with this context
+    print(f"[warden] ESCALATED {task_id}: {reason}"
+          + (" (workdir rolled back)" if rolled_back else ""), file=sys.stderr)
 
 
 # ----------------------------------------------------------------------------
@@ -369,10 +425,12 @@ def cmd_new(task_id: str, description: str) -> None:
     (td / "artifacts").mkdir(parents=True)
     (td / "workdir").mkdir()
     (td / "task.md").write_text(description + "\n")
+    initial_commit = init_workdir_repo(task_id)
     state = {
         "task_id": task_id,
         "stage": STAGES[0],
         "status": "pending",
+        "last_good_commit": initial_commit,
         "stages": {s: {"attempts": 0, "max_attempts": DEFAULT_MAX_ATTEMPTS,
                        "last_diff_hash": None} for s in STAGES},
         "budget": {"max_total_attempts": 15, "max_token_spend": 2_000_000,
@@ -395,34 +453,67 @@ def cmd_run(task_id: str, agent_mode: str) -> None:
     while state["stage"] != "done":
         stage = state["stage"]
         role = STAGE_CONFIG[stage][0]
-        print(f"[warden] {task_id} :: stage '{stage}'")
+        ss = state["stages"][stage]
+        budget = state["budget"]
+
+        # --- Phase 2: budgets and attempt ceilings, checked BEFORE each attempt ---
+        if ss["attempts"] >= ss["max_attempts"]:
+            escalate(task_id, f"stage '{stage}' exhausted {ss['max_attempts']} attempts")
+            return
+        if budget["total_attempts"] >= budget["max_total_attempts"]:
+            escalate(task_id, f"task budget exhausted: {budget['total_attempts']} total attempts")
+            return
+        if budget["tokens_spent"] >= budget["max_token_spend"]:
+            escalate(task_id, f"token budget exhausted: {budget['tokens_spent']} spent")
+            return
+
+        attempt = ss["attempts"] + 1
+        print(f"[warden] {task_id} :: stage '{stage}' (attempt {attempt}/{ss['max_attempts']})")
 
         state["status"] = "running"
-        state["stages"][stage]["attempts"] += 1  # recorded BEFORE work: a crash
-        state["budget"]["total_attempts"] += 1   # mid-stage still counts the attempt
+        ss["attempts"] = attempt           # recorded BEFORE work: a crash
+        budget["total_attempts"] += 1      # mid-stage still counts the attempt
         save_state(task_id, state)
-        log_event(task_id, "stage_start",
-                  {"stage": stage, "attempt": state["stages"][stage]["attempts"]})
+        log_event(task_id, "stage_start", {"stage": stage, "attempt": attempt})
 
         try:
             if role is not None:
-                run_agent(task_id, stage, role, agent_mode)
+                usage = run_agent(task_id, stage, role, agent_mode)
+                u = usage.get("usage", {})
+                budget["tokens_spent"] += u.get("input_tokens", 0) + u.get("output_tokens", 0)
+                save_state(task_id, state)
             validate_artifact(task_id, stage)
             run_gate(task_id, stage)
         except StageFailure as e:
-            log_event(task_id, "stage_failed", {"stage": stage, "reason": str(e)})
-            # TODO(phase2): retry while attempts < max_attempts; diff-hash stuck
-            # detection; only then escalate. Phase 1 escalates on first failure.
-            escalate(task_id, f"stage '{stage}' failed: {e}")
-            return
+            log_event(task_id, "stage_failed",
+                      {"stage": stage, "attempt": attempt, "reason": str(e)})
 
+            # --- Phase 2: stuck detection on implement ---
+            # Identical diff across consecutive failed attempts = agent is
+            # looping; escalate now instead of burning remaining attempts.
+            if stage == "implement":
+                h = workdir_diff_hash(task_id)
+                if h is not None and h == ss["last_diff_hash"]:
+                    escalate(task_id,
+                             f"stuck: implement attempt {attempt} produced an "
+                             f"identical diff to the previous attempt")
+                    return
+                ss["last_diff_hash"] = h
+
+            save_state(task_id, state)
+            continue  # retry same stage; ceilings re-checked at loop top
+
+        # --- stage passed ---
         commit_artifact(task_id, stage)
+        good = checkpoint_workdir(task_id, stage)
+        if good:
+            state["last_good_commit"] = good
         nxt = STAGES[STAGES.index(stage) + 1] if stage != STAGES[-1] else "done"
-        state = load_state(task_id)  # reload: agent path may have updated budget
         state["stage"] = nxt
         state["status"] = "done" if nxt == "done" else "pending"
         save_state(task_id, state)   # atomic transition — the crash-safe moment
-        log_event(task_id, "transition", {"from": stage, "to": nxt})
+        log_event(task_id, "transition", {"from": stage, "to": nxt,
+                                          "checkpoint": good})
 
     print(f"[warden] {task_id} complete")
 

@@ -20,9 +20,13 @@ if [ -n "${WARDEN_BUILD_CMD:-}" ]; then
   (cd "$WORKDIR" && eval "$WARDEN_BUILD_CMD") || verdict gate_implement fail "build failed"
 fi
 
-# 2. Diff non-empty and confined to planned files (when workdir is a git repo)
+# 2. Diff non-empty and confined to planned files (when workdir is a git repo).
+# HEAD is the last good checkpoint, so stage everything and diff against it —
+# this counts new (previously untracked) files too. Staging is safe: the
+# orchestrator checkpoints with `add -A` on pass and hard-resets on escalation.
 if [ -d "$WORKDIR/.git" ]; then
-  changed=$(cd "$WORKDIR" && git diff --name-only HEAD~1 2>/dev/null || git diff --name-only)
+  (cd "$WORKDIR" && git add -A)
+  changed=$(cd "$WORKDIR" && git diff --cached --name-only)
   [ -n "$changed" ] || verdict gate_implement fail "diff is empty"
   allowed=$(json_get "$PLAN" '"\n".join(f for t in d["tasks"] for f in t["files"])')
   while IFS= read -r f; do
