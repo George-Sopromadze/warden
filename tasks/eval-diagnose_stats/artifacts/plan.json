@@ -2,11 +2,12 @@
   "tasks": [
     {
       "id": "T-1",
-      "description": "Fix the mean() function in stats.py by removing the incorrect +1 from the denominator. The function currently divides by len(numbers) + 1 instead of len(numbers).",
+      "description": "Fix the mean function in stats.py by removing the +1 from the divisor. The bug is in line 2 where it divides by (len(numbers) + 1) instead of len(numbers)",
       "files": [
         "stats.py"
       ],
       "depends_on": []
     }
-  ]
+  ],
+  "flags": []
 }
