@@ -1,40 +1,20 @@
 {
-  "goal": "Find and fix the bug in stats.py so that all tests in test_stats.py pass without modifying the tests.",
+  "goal": "Identify and document the bug in stats.py that causes test_stats.py to fail, then outline the acceptance criteria to verify the fix.",
   "scope": [
-    "Fix the mean() function to correctly calculate the average of numbers",
-    "Verify variance() and stdev() functions work correctly with the fixed mean()"
+    "Analyze the mean(), variance(), and stdev() functions in stats.py",
+    "Identify the bug causing test failures in test_stats.py",
+    "Define acceptance criteria to verify all tests pass"
   ],
   "out_of_scope": [
     "Modifying test_stats.py",
-    "Adding new functions or tests"
+    "Adding new functions or features beyond what the tests require"
   ],
   "acceptance_criteria": [
     {
       "id": "AC-1",
       "type": "executable",
-      "check": "python3 -m pytest test_stats.py::test_mean -v",
-      "expected": "test passes"
-    },
-    {
-      "id": "AC-2",
-      "type": "executable",
-      "check": "python3 -m pytest test_stats.py::test_variance -v",
-      "expected": "test passes"
-    },
-    {
-      "id": "AC-3",
-      "type": "executable",
-      "check": "python3 -m pytest test_stats.py::test_stdev -v",
-      "expected": "test passes"
-    },
-    {
-      "id": "AC-4",
-      "type": "executable",
       "check": "python3 -m pytest test_stats.py -v",
-      "expected": "all tests pass"
+      "expected": "All tests pass"
     }
-  ],
-  "flags": [
-    "The mean() function has a bug on line 2: it divides by (len(numbers) + 1) instead of len(numbers), causing all mean calculations to be incorrect"
   ]
 }
