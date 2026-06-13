@@ -1,38 +1,30 @@
 {
-  "goal": "Fix the bug in the average() function that divides by (len(numbers) - 1) instead of len(numbers), causing incorrect calculations and a crash on single-element lists",
+  "goal": "Fix the bug in calculator.py's average() function so it correctly computes the arithmetic mean of a list of numbers and does not crash on single-element lists",
   "scope": [
-    "Fix the average() function in calculator.py",
-    "Ensure all 4 tests in test_calculator.py pass"
+    "calculator.py: average() function only",
+    "Verify fix by running all tests in test_calculator.py"
   ],
   "out_of_scope": [
-    "Modifying the median() function",
-    "Adding new functions or tests",
-    "Refactoring unrelated code"
+    "Modifying median() function",
+    "Modifying test_calculator.py",
+    "Creating new test cases"
   ],
   "acceptance_criteria": [
     {
       "id": "AC-1",
       "type": "executable",
-      "check": "pytest test_calculator.py passes all 4 tests",
-      "expected": "4 passed"
+      "check": "python3 -m pytest /Users/George/warden/tasks/t-bugfix/workdir/test_calculator.py -v",
+      "expected": "All tests pass"
     },
     {
       "id": "AC-2",
-      "type": "executable",
-      "check": "average([2, 4, 6]) returns 4.0",
-      "expected": "4.0"
+      "type": "judgment",
+      "check": "Is the average() function dividing by the correct denominator (len(numbers), not len(numbers) - 1)?"
     },
     {
       "id": "AC-3",
-      "type": "executable",
-      "check": "average([5]) returns 5.0 without crashing",
-      "expected": "5.0"
-    },
-    {
-      "id": "AC-4",
       "type": "judgment",
-      "check": "The median() function is unchanged and still works correctly"
+      "check": "Does the average() function correctly handle single-element lists without crashing?"
     }
-  ],
-  "flags": []
+  ]
 }
