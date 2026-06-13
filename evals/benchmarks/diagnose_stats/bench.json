@@ -1,0 +1,6 @@
+{
+  "id": "diagnose_stats",
+  "description": "The tests in test_stats.py are failing. Find and fix the bug in stats.py so all tests pass. Do not change the tests.",
+  "expect_outcome": "awaiting_approval",
+  "post_check": "python3 -m pytest -q"
+}

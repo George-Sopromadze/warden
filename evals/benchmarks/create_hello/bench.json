@@ -1,0 +1,6 @@
+{
+  "id": "create_hello",
+  "description": "Create hello.py that prints 'hello world', plus test_hello.py with a pytest that imports and checks it.",
+  "expect_outcome": "awaiting_approval",
+  "post_check": "python3 -m pytest -q"
+}

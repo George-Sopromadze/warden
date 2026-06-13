@@ -1,0 +1,6 @@
+{
+  "id": "fix_calculator",
+  "description": "The file calculator.py has a bug in the average() function. Fix it so all tests in test_calculator.py pass. Do not change median().",
+  "expect_outcome": "awaiting_approval",
+  "post_check": "python3 -m pytest -q"
+}
