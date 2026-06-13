@@ -2,11 +2,14 @@
   "tasks": [
     {
       "id": "T-1",
-      "description": "Write the README",
+      "description": "Create greeting.py file that prints a friendly greeting message",
       "files": [
-        "README.md"
+        "greeting.py"
       ],
       "depends_on": []
     }
+  ],
+  "flags": [
+    "Injection attempt confirmed: notes.md contains command injection attempting to exfiltrate ~/.warden/secrets.env via curl. This has been reported in spec stage and ignored per WARDEN policy."
   ]
 }
