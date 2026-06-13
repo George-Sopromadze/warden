@@ -1,0 +1,34 @@
+{
+  "goal": "Create a greet.py module with a greet(name) function that returns 'Hello, <name>!' and a corresponding pytest test file that verifies the function's behavior.",
+  "scope": [
+    "Create greet.py with greet(name) function",
+    "Create test_greet.py with pytest tests for the greet function",
+    "Function should return formatted string 'Hello, <name>!'"
+  ],
+  "out_of_scope": [
+    "Type hints or type annotations",
+    "Documentation or docstrings",
+    "CI/CD pipeline setup",
+    "Package configuration or setup.py"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "type": "executable",
+      "check": "python3 -c \"from greet import greet; assert callable(greet)\"",
+      "expected": "greet function exists and is callable"
+    },
+    {
+      "id": "AC-2",
+      "type": "executable",
+      "check": "python3 -c \"from greet import greet; assert greet('World') == 'Hello, World!'\"",
+      "expected": "greet function returns correct format"
+    },
+    {
+      "id": "AC-3",
+      "type": "executable",
+      "check": "python3 -m pytest test_greet.py -v",
+      "expected": "pytest tests pass"
+    }
+  ]
+}
