@@ -30,6 +30,10 @@ if [ -d "$WORKDIR/.git" ]; then
   [ -n "$changed" ] || verdict gate_implement fail "diff is empty"
   allowed=$(json_get "$PLAN" '"\n".join(f for t in d["tasks"] for f in t["files"])')
   while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    case "$f" in
+      __pycache__/*|*/__pycache__/*|*.pyc|*.pyo|.pytest_cache/*|*/.pytest_cache/*|node_modules/*|.gitignore) continue ;;
+    esac
     echo "$allowed" | grep -qxF "$f" || \
       verdict gate_implement fail "diff touches undeclared file: $f"
   done <<< "$changed"

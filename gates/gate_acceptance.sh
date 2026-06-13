@@ -18,7 +18,7 @@ i=0
 while [ "$i" -lt "$n" ]; do
   id=$(json_get "$SPEC" "[c for c in d['acceptance_criteria'] if c['type']=='executable'][$i]['id']")
   cmd=$(json_get "$SPEC" "[c for c in d['acceptance_criteria'] if c['type']=='executable'][$i]['check']")
-  if ! (cd "$TASK_DIR" && eval "$cmd" > /dev/null 2>&1); then
+  if ! (cd "$TASK_DIR/workdir" && eval "$cmd" > /dev/null 2>&1); then
     verdict gate_acceptance fail "executable criterion $id failed: $cmd"
   fi
   i=$((i+1))

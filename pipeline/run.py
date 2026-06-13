@@ -128,39 +128,107 @@ def run_agent(task_id: str, stage: str, role: str, mode: str) -> dict:
     rules = (AGENTS_DIR / f"{role}.md").read_text()
     task_desc = (task_dir(task_id) / "task.md").read_text()
     prior = _prior_artifacts_summary(task_id, stage)
+    schema_name = STAGE_CONFIG[stage][2]
+    schema_text = ""
+    if schema_name:
+        schema_text = (SCHEMAS_DIR / schema_name).read_text()
 
     prompt = (
         f"WARDEN stage: {stage}\n"
         f"Task folder: {task_dir(task_id)}\n\n"
         f"## Task\n{task_desc}\n\n"
         f"## Prior stage artifacts\n{prior}\n\n"
-        f"Produce the `{stage}` stage artifact and write it as valid JSON "
-        f"(schema: schemas/{STAGE_CONFIG[stage][2]}) to:\n{artifact_path}\n"
-        f"Do the stage's actual work first; the artifact describes what you did."
+        f"## Required output schema (your JSON MUST conform exactly to this)\n"
+        f"```json\n{schema_text}\n```\n\n"
+        f"Do the stage's actual work now (read/edit files in the working "
+        f"directory as needed). For the implement stage the working directory "
+        f"may be EMPTY — do not assume files exist; create every file the plan "
+        f"lists using your tools and verify them before reporting. Then return "
+        f"the `{stage}` artifact as a single "
+        f"JSON object conforming EXACTLY to the schema above — use those exact "
+        f"field names, no extra fields. Return ONLY the JSON object, nothing else."
     )
 
-    # Headless Claude Code. Verify flags against `claude --help` on your box;
-    # current docs: -p (print mode) + --append-system-prompt + --output-format json.
-    cmd = [
-        "claude", "-p", prompt,
-        "--append-system-prompt", rules,
-        "--output-format", "json",
-    ]
+    # Headless Claude Code. We DON'T ask the model to write the artifact file
+    # (non-interactive -p has no write permission by default); instead it
+    # returns structured output and the orchestrator writes the file. When a
+    # schema exists we pass it via --json-schema so the CLI enforces the shape.
+    cmd = ["claude", "-p", prompt,
+           "--append-system-prompt", rules,
+           "--output-format", "json"]
+    model = os.environ.get(
+        "WARDEN_WORKER_MODEL" if role == "worker" else "WARDEN_REVIEWER_MODEL")
+    if model:
+        cmd += ["--model", model]
+    # NOTE: --json-schema was tried here but hangs in Claude Code 2.1.x, so we
+    # rely on _extract_artifact (parse .result, strip fences) + the orchestrator's
+    # own validate_artifact for schema enforcement. Same guarantee, gate-side.
+    # Implement stage needs to actually edit files; allow the edit tools and
+    # confine work to the task workdir (Phase 6 will tighten this further).
+    if stage == "implement":
+        cmd += ["--allowedTools", "Read,Write,Edit,Bash,Grep,Glob"]
+    if stage == "test":
+        cmd += ["--allowedTools", "Read,Bash,Grep,Glob"]
+
     log_event(task_id, "agent_start", {"stage": stage, "role": role,
                                        "cmd": " ".join(shlex.quote(c) for c in cmd[:2])})
-    proc = subprocess.run(cmd, capture_output=True, text=True,
-                          cwd=task_dir(task_id) / "workdir")
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True,
+                              cwd=task_dir(task_id) / "workdir",
+                              timeout=int(os.environ.get("WARDEN_AGENT_TIMEOUT", "180")))
+    except subprocess.TimeoutExpired:
+        raise StageFailure("agent call timed out "
+                           f"({os.environ.get('WARDEN_AGENT_TIMEOUT', '180')}s)")
     usage = _extract_usage(proc.stdout)
     log_event(task_id, "agent_message", {
         "stage": stage, "role": role, "exit": proc.returncode,
         "stdout_tail": proc.stdout[-2000:], "stderr_tail": proc.stderr[-1000:],
         "usage": usage,
     })
-    if usage:
-        pass  # caller adds to budget and saves state (single writer, no race)
     if proc.returncode != 0:
-        raise StageFailure(f"agent exited {proc.returncode}")
+        raise StageFailure(f"agent exited {proc.returncode}: {proc.stderr.strip()[:200]}")
+
+    # Extract the artifact and write it ourselves (deterministic).
+    if schema_name:
+        artifact_obj = _extract_artifact(proc.stdout)
+        if artifact_obj is None:
+            raise StageFailure("could not extract structured artifact from agent output")
+        atomic_write_json(artifact_path, artifact_obj)
     return usage
+
+
+def _extract_artifact(stdout: str):
+    """Pull the stage artifact out of Claude Code's --output-format json envelope.
+    Robust to markdown fences, preambles, and trailing chatter."""
+    try:
+        env = json.loads(stdout)
+    except json.JSONDecodeError:
+        return None
+    if isinstance(env, dict) and env.get("structured_output") is not None:
+        return env["structured_output"]
+    text = env.get("result") if isinstance(env, dict) else None
+    if not isinstance(text, str):
+        return None
+    text = text.strip()
+    # 1. Strip a leading ```json / ``` fence and trailing ``` if present.
+    if text.startswith("```"):
+        text = text.split("\n", 1)[-1]
+        if text.rstrip().endswith("```"):
+            text = text.rstrip()[:-3]
+    # 2. Try direct parse.
+    try:
+        return json.loads(text.strip())
+    except json.JSONDecodeError:
+        pass
+    # 3. Final fallback: parse the widest {...} span. Survives any preamble,
+    #    trailing prose, or stray fence the steps above missed.
+    start, end = text.find("{"), text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        try:
+            return json.loads(text[start:end + 1])
+        except json.JSONDecodeError:
+            return None
+    return None
 
 
 def _extract_usage(stdout: str) -> dict:
@@ -373,26 +441,36 @@ def run_goalkeeper(task_id: str, stage: str, mode: str) -> dict:
         task_desc = (task_dir(task_id) / "task.md").read_text()
         spec = (task_dir(task_id) / "artifacts" / "spec.json").read_text()
         latest = (task_dir(task_id) / "artifacts" / STAGE_CONFIG[stage][1]).read_text()
+        gk_schema = (SCHEMAS_DIR / "goalkeeper.schema.json").read_text()
         prompt = (
             f"Goal Keeper check after stage: {stage}\n\n"
             f"## Original task\n{task_desc}\n\n"
             f"## Acceptance criteria (from spec.json)\n{spec}\n\n"
             f"## Latest artifact\n{latest}\n\n"
-            f"Write your verdict as JSON matching schemas/goalkeeper.schema.json "
-            f"to:\n{out_path}\n"
-            f"Evaluate ONLY judgment criteria and overall goal alignment."
+            f"## Required output schema (conform EXACTLY)\n```json\n{gk_schema}\n```\n\n"
+            f"Evaluate ONLY judgment criteria and overall goal alignment. "
+            f"Return your verdict as a single JSON object conforming to the schema "
+            f"above — use those exact field names. Return ONLY the JSON, nothing else."
         )
         cmd = ["claude", "-p", prompt,
                "--append-system-prompt", rules,
                "--output-format", "json"]
-        gk_model = os.environ.get("WARDEN_GK_MODEL")  # e.g. "haiku" — cheap model
+        gk_model = os.environ.get("WARDEN_GK_MODEL")  # cheap model per roadmap
         if gk_model:
             cmd += ["--model", gk_model]
-        proc = subprocess.run(cmd, capture_output=True, text=True,
-                              cwd=task_dir(task_id))
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True,
+                                  cwd=task_dir(task_id),
+                                  timeout=int(os.environ.get("WARDEN_AGENT_TIMEOUT", "180")))
+        except subprocess.TimeoutExpired:
+            raise StageFailure(f"goal keeper timed out after '{stage}'")
         usage = _extract_usage(proc.stdout)
-        if proc.returncode != 0 or not out_path.exists():
-            raise StageFailure(f"goal keeper produced no verdict after '{stage}'")
+        if proc.returncode != 0:
+            raise StageFailure(f"goal keeper exited {proc.returncode} after '{stage}'")
+        verdict_obj = _extract_artifact(proc.stdout)
+        if verdict_obj is None:
+            raise StageFailure(f"could not extract goal keeper verdict after '{stage}'")
+        atomic_write_json(out_path, verdict_obj)
 
     try:
         v = json.loads(out_path.read_text())
@@ -570,6 +648,8 @@ def workdir_is_repo(task_id: str) -> bool:
 
 def init_workdir_repo(task_id: str) -> str:
     """Each task workdir is its own git repo, so rollback has a precise target."""
+    (task_dir(task_id) / "workdir" / ".gitignore").write_text(
+        "__pycache__/\n*.pyc\n*.pyo\n.pytest_cache/\nnode_modules/\n.DS_Store\n")
     _wgit(task_id, "init", "-q")
     _wgit(task_id, "config", "user.email", "warden@local")
     _wgit(task_id, "config", "user.name", "warden")
