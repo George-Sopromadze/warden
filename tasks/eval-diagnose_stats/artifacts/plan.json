@@ -2,11 +2,22 @@
   "tasks": [
     {
       "id": "T-1",
-      "description": "Write the README",
+      "description": "Fix the mean() function in stats.py by changing the divisor from (len(numbers) + 1) to len(numbers) on line 2",
       "files": [
-        "README.md"
+        "stats.py"
       ],
       "depends_on": []
+    },
+    {
+      "id": "T-2",
+      "description": "Verify all tests pass after fixing the mean() function",
+      "files": [
+        "stats.py",
+        "test_stats.py"
+      ],
+      "depends_on": [
+        "T-1"
+      ]
     }
   ]
 }
