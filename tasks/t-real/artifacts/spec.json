@@ -1,33 +1,33 @@
 {
-  "goal": "Create a hello.py module that prints 'hello world' and a corresponding pytest test suite in test_hello.py that verifies the module's functionality.",
+  "goal": "Create a Python hello module that prints 'hello world' and write automated pytest tests to verify its functionality",
   "scope": [
-    "Create hello.py with code that prints 'hello world'",
-    "Create test_hello.py with a pytest test that imports hello.py and validates its output",
-    "Ensure pytest test suite passes"
+    "Create hello.py module with code that prints 'hello world'",
+    "Create test_hello.py with pytest test cases that import and validate hello.py",
+    "Ensure pytest tests pass successfully"
   ],
   "out_of_scope": [
-    "Additional modules or packages beyond hello.py",
-    "Complex testing patterns or coverage analysis",
-    "Performance optimization or profiling"
+    "Documentation or README files",
+    "CI/CD pipeline integration",
+    "Package distribution or setup.py",
+    "Additional features beyond printing 'hello world'"
   ],
   "acceptance_criteria": [
     {
       "id": "AC-1",
       "type": "executable",
-      "check": "python hello.py produces output containing 'hello world'",
-      "expected": "hello world"
+      "check": "python hello.py",
+      "expected": "Output contains 'hello world'"
     },
     {
       "id": "AC-2",
       "type": "executable",
-      "check": "test_hello.py exists and imports hello module successfully",
-      "expected": "imports complete without error"
+      "check": "pytest test_hello.py -v",
+      "expected": "All tests pass with exit code 0"
     },
     {
       "id": "AC-3",
-      "type": "executable",
-      "check": "pytest test_hello.py passes all tests",
-      "expected": "all tests pass"
+      "type": "judgment",
+      "check": "Does test_hello.py import hello.py and validate its functionality?"
     }
   ],
   "flags": []
