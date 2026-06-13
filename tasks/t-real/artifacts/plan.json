@@ -2,7 +2,7 @@
   "tasks": [
     {
       "id": "T-1",
-      "description": "Create hello.py with a function that prints 'hello world'",
+      "description": "Create hello.py module that prints 'hello world'",
       "files": [
         "hello.py"
       ],
@@ -10,7 +10,7 @@
     },
     {
       "id": "T-2",
-      "description": "Create test_hello.py with pytest test cases that import hello and verify output",
+      "description": "Create test_hello.py with pytest test that imports hello.py and verifies it works",
       "files": [
         "test_hello.py"
       ],
