@@ -1,0 +1,32 @@
+{
+  "goal": "Create add.py module with an add(a, b) function that returns the sum of its arguments, plus pytest tests to verify its functionality.",
+  "scope": [
+    "Create add.py with add(a, b) function returning a+b",
+    "Create pytest test file (test_add.py) with tests for the add function"
+  ],
+  "out_of_scope": [
+    "Type hints or static type checking",
+    "Documentation or docstrings",
+    "Edge case handling beyond basic addition"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "type": "executable",
+      "check": "python3 -c \"from add import add; assert callable(add)\"",
+      "expected": "add function is importable and callable"
+    },
+    {
+      "id": "AC-2",
+      "type": "executable",
+      "check": "python3 -c \"from add import add; assert add(2, 3) == 5\"",
+      "expected": "add(2, 3) returns 5"
+    },
+    {
+      "id": "AC-3",
+      "type": "executable",
+      "check": "python3 -m pytest test_add.py -v",
+      "expected": "All pytest tests pass"
+    }
+  ]
+}
