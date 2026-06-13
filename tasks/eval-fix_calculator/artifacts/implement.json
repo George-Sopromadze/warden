@@ -1,7 +1,6 @@
 {
-  "summary": "Fixed the average() function in calculator.py by changing the divisor from len(numbers) - 1 to len(numbers) to correctly compute the arithmetic mean. All tests now pass.",
+  "summary": "Fixed the average() function in calculator.py by correcting the divisor from len(numbers) - 1 to len(numbers) on line 5. All tests now pass.",
   "files_changed": [
     "calculator.py"
-  ],
-  "diff_hash": "59cdba5ee7f66f6cd4f5cc341b345152b8056ad3c68fa39d29f5ef17063368f3"
+  ]
 }
