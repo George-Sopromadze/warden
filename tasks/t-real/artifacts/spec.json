@@ -1,22 +1,40 @@
 {
-  "goal": "Toy goal for t-real: create README with required content",
+  "goal": "Create a simple Python module hello.py that prints 'hello world' and a corresponding pytest test in test_hello.py that validates its behavior, with all tests passing.",
   "scope": [
-    "README.md"
+    "Create hello.py with code that prints 'hello world'",
+    "Create test_hello.py with pytest test that imports and validates hello.py",
+    "Ensure pytest executes successfully with passing tests"
   ],
   "out_of_scope": [
-    "everything else"
+    "Additional features beyond printing 'hello world'",
+    "Documentation or extensive comments",
+    "CI/CD configuration or automation",
+    "Package distribution or setup.py"
   ],
   "acceptance_criteria": [
     {
       "id": "AC-1",
       "type": "executable",
-      "check": "test -f workdir/README.md",
-      "expected": "exit 0"
+      "check": "File hello.py exists in task directory",
+      "expected": "hello.py present"
     },
     {
       "id": "AC-2",
+      "type": "executable",
+      "check": "File test_hello.py exists in task directory",
+      "expected": "test_hello.py present"
+    },
+    {
+      "id": "AC-3",
+      "type": "executable",
+      "check": "Run 'pytest test_hello.py -v' in task directory",
+      "expected": "exit code 0, all tests pass"
+    },
+    {
+      "id": "AC-4",
       "type": "judgment",
-      "check": "Is the README understandable to a newcomer?"
+      "check": "Does test_hello.py properly import hello.py and assert expected behavior?"
     }
-  ]
+  ],
+  "flags": []
 }
