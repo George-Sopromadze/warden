@@ -1,0 +1,8 @@
+{
+  "summary": "Fixed the bug in the average() function by changing the denominator from (len(numbers) - 1) to len(numbers). This resolves incorrect calculations and the crash on single-element lists. All 4 tests now pass.",
+  "files_changed": [
+    "calculator.py"
+  ],
+  "diff_hash": "cd03f8624c16acae39d1d77c904c2491",
+  "flags": []
+}
