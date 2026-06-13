@@ -1,34 +1,41 @@
 {
-  "goal": "Create a greet.py module with a greet(name) function that returns 'Hello, <name>!' and a corresponding pytest test file that verifies the function's behavior.",
+  "goal": "Create a Python module greet.py with a greet(name) function that returns a greeting string in the format 'Hello, <name>!', along with comprehensive pytest tests to validate its behavior.",
   "scope": [
-    "Create greet.py with greet(name) function",
-    "Create test_greet.py with pytest tests for the greet function",
-    "Function should return formatted string 'Hello, <name>!'"
+    "Create greet.py file with greet(name) function",
+    "Function must return greeting string in format 'Hello, <name>!'",
+    "Create test_greet.py with pytest test cases",
+    "Tests must validate function behavior with various inputs"
   ],
   "out_of_scope": [
-    "Type hints or type annotations",
+    "Type hints or type checking",
     "Documentation or docstrings",
-    "CI/CD pipeline setup",
-    "Package configuration or setup.py"
+    "CLI interface or script",
+    "Performance optimization",
+    "Integration with other modules"
   ],
   "acceptance_criteria": [
     {
       "id": "AC-1",
       "type": "executable",
-      "check": "python3 -c \"from greet import greet; assert callable(greet)\"",
-      "expected": "greet function exists and is callable"
+      "check": "test -f greet.py",
+      "expected": "greet.py file exists"
     },
     {
       "id": "AC-2",
       "type": "executable",
       "check": "python3 -c \"from greet import greet; assert greet('World') == 'Hello, World!'\"",
-      "expected": "greet function returns correct format"
+      "expected": "Function returns correct greeting format"
     },
     {
       "id": "AC-3",
       "type": "executable",
       "check": "python3 -m pytest test_greet.py -v",
-      "expected": "pytest tests pass"
+      "expected": "All tests pass"
+    },
+    {
+      "id": "AC-4",
+      "type": "judgment",
+      "check": "Do the tests adequately cover the greet function's behavior?"
     }
   ]
 }
