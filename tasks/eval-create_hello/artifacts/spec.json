@@ -1,41 +1,39 @@
 {
-  "goal": "Create a Python hello world program and comprehensive pytest tests to verify its functionality",
+  "goal": "Create hello.py that prints 'hello world' and test_hello.py with pytest tests that verify the functionality",
   "scope": [
-    "Create hello.py that prints 'hello world' when executed",
-    "Create test_hello.py with pytest tests that import and verify hello.py output",
-    "Ensure both files are created in the working directory"
+    "Create hello.py file that prints 'hello world'",
+    "Create test_hello.py with pytest test(s) that import and validate hello.py",
+    "Ensure all pytest tests pass"
   ],
   "out_of_scope": [
-    "Package setup or configuration files",
+    "Additional features beyond printing 'hello world'",
     "CI/CD pipeline setup",
-    "Documentation beyond basic code structure",
-    "Virtual environment setup"
+    "Documentation beyond docstrings"
   ],
   "acceptance_criteria": [
     {
       "id": "AC-1",
       "type": "executable",
-      "check": "test -f hello.py"
+      "check": "test -f hello.py",
+      "expected": "hello.py file exists"
     },
     {
       "id": "AC-2",
       "type": "executable",
-      "check": "python3 hello.py | grep -q 'hello world'"
+      "check": "python3 hello.py | grep -q 'hello world'",
+      "expected": "hello.py prints 'hello world'"
     },
     {
       "id": "AC-3",
       "type": "executable",
-      "check": "test -f test_hello.py"
+      "check": "test -f test_hello.py",
+      "expected": "test_hello.py file exists"
     },
     {
       "id": "AC-4",
       "type": "executable",
-      "check": "python3 -m pytest test_hello.py -v"
-    },
-    {
-      "id": "AC-5",
-      "type": "judgment",
-      "check": "Does test_hello.py properly import hello.py and test that it outputs 'hello world'?"
+      "check": "python3 -m pytest test_hello.py",
+      "expected": "All pytest tests pass"
     }
   ]
 }
