@@ -2,13 +2,36 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "WARDEN test report artifact",
   "type": "object",
-  "required": ["suites_run", "passed", "failed"],
+  "required": [
+    "suites_run",
+    "passed",
+    "failed"
+  ],
   "additionalProperties": false,
   "properties": {
-    "suites_run": { "type": "integer", "minimum": 0 },
-    "passed": { "type": "integer", "minimum": 0 },
-    "failed": { "type": "integer", "minimum": 0 },
-    "coverage": { "type": "number", "minimum": 0, "maximum": 100 },
-    "flags": { "type": "array", "items": { "type": "string" } }
+    "suites_run": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "passed": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "failed": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "coverage": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "flags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
   }
 }

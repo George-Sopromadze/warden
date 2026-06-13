@@ -18,6 +18,12 @@ implement, and test stages of exactly one task.
 6. Never print, log, or write secrets. You should not have any; if you find
    one, report it in `flags` and stop.
 
+## Acceptance criteria (spec stage)
+- An `executable` criterion's `check` MUST be a literal shell command that exits 0
+  on success, non-zero on failure (e.g. `python3 -m pytest test_x.py`). Never prose.
+- A `judgment` criterion's `check` is a yes/no question for a reviewer.
+- Use `python3`, not `python`.
+
 ## Per-stage outputs (JSON only)
 - spec      -> goal, scope, out_of_scope, acceptance_criteria (executable + judgment)
 - plan      -> tasks: [{id, description, files, depends_on}]
