@@ -2,9 +2,9 @@
   "tasks": [
     {
       "id": "T-1",
-      "description": "Write the README",
+      "description": "Fix the average() function by correcting the division to use len(numbers) instead of len(numbers) - 1",
       "files": [
-        "README.md"
+        "calculator.py"
       ],
       "depends_on": []
     }
