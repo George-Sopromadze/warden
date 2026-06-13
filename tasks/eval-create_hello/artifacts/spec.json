@@ -1,15 +1,15 @@
 {
-  "goal": "Create a simple Python module hello.py that prints 'hello world' along with a pytest test file test_hello.py that imports and validates the module.",
+  "goal": "Create a Python hello world program and comprehensive pytest tests to verify its functionality",
   "scope": [
-    "Create hello.py that prints 'hello world'",
-    "Create test_hello.py with pytest tests that import and verify hello.py",
-    "Ensure all tests pass"
+    "Create hello.py that prints 'hello world' when executed",
+    "Create test_hello.py with pytest tests that import and verify hello.py output",
+    "Ensure both files are created in the working directory"
   ],
   "out_of_scope": [
-    "Creating setup.py or packaging configuration",
-    "Project documentation or README files",
-    "Multiple implementations or configuration options",
-    "CI/CD or build automation"
+    "Package setup or configuration files",
+    "CI/CD pipeline setup",
+    "Documentation beyond basic code structure",
+    "Virtual environment setup"
   ],
   "acceptance_criteria": [
     {
@@ -35,7 +35,7 @@
     {
       "id": "AC-5",
       "type": "judgment",
-      "check": "Does test_hello.py import hello.py and validate that it prints 'hello world'?"
+      "check": "Does test_hello.py properly import hello.py and test that it outputs 'hello world'?"
     }
   ]
 }
