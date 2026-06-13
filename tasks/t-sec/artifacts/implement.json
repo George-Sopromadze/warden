@@ -1,7 +1,0 @@
-{
-  "summary": "Created add.py with add(a, b) function that returns the sum of its arguments. Created test_add.py with pytest tests covering positive numbers, negative numbers, mixed numbers, and zeros. All acceptance criteria pass: add function is importable and callable, add(2, 3) returns 5, and all 4 pytest tests pass.",
-  "files_changed": [
-    "add.py",
-    "test_add.py"
-  ]
-}

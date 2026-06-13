@@ -141,10 +141,10 @@ def run_agent(task_id: str, stage: str, role: str, mode: str) -> dict:
         f"## Required output schema (your JSON MUST conform exactly to this)\n"
         f"```json\n{schema_text}\n```\n\n"
         f"Do the stage's actual work now (read/edit files in the working "
-        f"directory as needed). For the implement stage the working directory "
-        f"may be EMPTY — do not assume files exist; create every file the plan "
-        f"lists using your tools and verify them before reporting. Then return "
-        f"the `{stage}` artifact as a single "
+        f"directory as needed). For the implement stage: the working directory "
+        f"may be EMPTY — do not assume files already exist; create every file "
+        f"the plan lists using your tools and verify they exist before "
+        f"reporting. Then return the `{stage}` artifact as a single "
         f"JSON object conforming EXACTLY to the schema above — use those exact "
         f"field names, no extra fields. Return ONLY the JSON object, nothing else."
     )
@@ -173,8 +173,12 @@ def run_agent(task_id: str, stage: str, role: str, mode: str) -> dict:
     log_event(task_id, "agent_start", {"stage": stage, "role": role,
                                        "cmd": " ".join(shlex.quote(c) for c in cmd[:2])})
     try:
+        agent_env = dict(os.environ)
+        agent_env["WARDEN_WORKDIR"] = str((task_dir(task_id) / "workdir").resolve())
+        agent_env.setdefault("WARDEN_ALLOWED_HOSTS", "api.anthropic.com")
         proc = subprocess.run(cmd, capture_output=True, text=True,
                               cwd=task_dir(task_id) / "workdir",
+                              env=agent_env,
                               timeout=int(os.environ.get("WARDEN_AGENT_TIMEOUT", "180")))
     except subprocess.TimeoutExpired:
         raise StageFailure("agent call timed out "
@@ -648,6 +652,7 @@ def workdir_is_repo(task_id: str) -> bool:
 
 def init_workdir_repo(task_id: str) -> str:
     """Each task workdir is its own git repo, so rollback has a precise target."""
+    # Seed a .gitignore so build cruft never enters diffs or scope checks.
     (task_dir(task_id) / "workdir" / ".gitignore").write_text(
         "__pycache__/\n*.pyc\n*.pyo\n.pytest_cache/\nnode_modules/\n.DS_Store\n")
     _wgit(task_id, "init", "-q")
