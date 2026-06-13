@@ -1,22 +1,38 @@
 {
-  "goal": "Toy goal for eval-fix_calculator: create README with required content",
+  "goal": "Fix the average() function in calculator.py to correctly compute the arithmetic mean by dividing the sum by the correct count of numbers, not count minus one.",
   "scope": [
-    "README.md"
+    "Fix the average() function in calculator.py",
+    "Ensure all tests in test_calculator.py pass"
   ],
   "out_of_scope": [
-    "everything else"
+    "Modifying the median() function",
+    "Adding new functions or tests",
+    "Changing test_calculator.py"
   ],
   "acceptance_criteria": [
     {
       "id": "AC-1",
       "type": "executable",
-      "check": "test -f workdir/README.md",
-      "expected": "exit 0"
+      "check": "python3 -m pytest test_calculator.py::test_average_basic -v",
+      "expected": "PASSED"
     },
     {
       "id": "AC-2",
-      "type": "judgment",
-      "check": "Is the README understandable to a newcomer?"
+      "type": "executable",
+      "check": "python3 -m pytest test_calculator.py::test_average_single -v",
+      "expected": "PASSED"
+    },
+    {
+      "id": "AC-3",
+      "type": "executable",
+      "check": "python3 -m pytest test_calculator.py::test_median_odd -v",
+      "expected": "PASSED"
+    },
+    {
+      "id": "AC-4",
+      "type": "executable",
+      "check": "python3 -m pytest test_calculator.py -v",
+      "expected": "all tests pass"
     }
   ]
 }
