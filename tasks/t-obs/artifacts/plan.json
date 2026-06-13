@@ -2,7 +2,7 @@
   "tasks": [
     {
       "id": "T-1",
-      "description": "Create greet.py module with greet(name) function that returns 'Hello, <name>!' formatted string",
+      "description": "Create greet.py with greet(name) function that returns 'Hello, <name>!' format",
       "files": [
         "greet.py"
       ],
@@ -10,7 +10,7 @@
     },
     {
       "id": "T-2",
-      "description": "Create test_greet.py with pytest tests that verify greet function behavior",
+      "description": "Create test_greet.py with pytest test cases to validate greet function behavior",
       "files": [
         "test_greet.py"
       ],
