@@ -1,40 +1,33 @@
 {
-  "goal": "Create a Python module that prints 'hello world' and a pytest test suite that verifies the module's functionality works correctly.",
+  "goal": "Create a hello.py module that prints 'hello world' and a corresponding pytest test suite in test_hello.py that verifies the module's functionality.",
   "scope": [
-    "Create hello.py that prints 'hello world'",
-    "Create test_hello.py with pytest test(s) that import and verify hello.py",
-    "Ensure all pytest tests pass"
+    "Create hello.py with code that prints 'hello world'",
+    "Create test_hello.py with a pytest test that imports hello.py and validates its output",
+    "Ensure pytest test suite passes"
   ],
   "out_of_scope": [
-    "CI/CD pipeline integration",
-    "Package distribution or setup.py",
-    "Documentation beyond inline code",
-    "Additional test frameworks or tools"
+    "Additional modules or packages beyond hello.py",
+    "Complex testing patterns or coverage analysis",
+    "Performance optimization or profiling"
   ],
   "acceptance_criteria": [
     {
       "id": "AC-1",
       "type": "executable",
-      "check": "Verify hello.py file exists and contains code to print 'hello world'",
-      "expected": "File exists at hello.py with a print statement outputting 'hello world'"
+      "check": "python hello.py produces output containing 'hello world'",
+      "expected": "hello world"
     },
     {
       "id": "AC-2",
       "type": "executable",
-      "check": "Verify test_hello.py file exists with pytest test function(s)",
-      "expected": "File exists at test_hello.py containing pytest test case(s)"
+      "check": "test_hello.py exists and imports hello module successfully",
+      "expected": "imports complete without error"
     },
     {
       "id": "AC-3",
       "type": "executable",
-      "check": "Run pytest test_hello.py",
-      "expected": "All tests pass with exit code 0"
-    },
-    {
-      "id": "AC-4",
-      "type": "judgment",
-      "check": "Does the test successfully import hello.py and verify its behavior?",
-      "expected": "Yes - test imports hello module and asserts the print statement works"
+      "check": "pytest test_hello.py passes all tests",
+      "expected": "all tests pass"
     }
   ],
   "flags": []
