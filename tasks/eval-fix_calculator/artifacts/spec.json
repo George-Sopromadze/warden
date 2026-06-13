@@ -1,13 +1,14 @@
 {
-  "goal": "Fix the average() function in calculator.py so it correctly computes the arithmetic mean of a list of numbers",
+  "goal": "Fix the bug in the average() function in calculator.py so that it correctly computes the arithmetic mean of a list of numbers and passes all tests in test_calculator.py",
   "scope": [
-    "calculator.py - average() function",
-    "test_calculator.py - verify all tests pass"
+    "calculator.py: Fix the average() function's division calculation (line 5)",
+    "Verify all tests in test_calculator.py pass"
   ],
   "out_of_scope": [
-    "Changes to median() function",
-    "Changes to test_calculator.py",
-    "Changes to any other files"
+    "Modifying the median() function",
+    "Adding new test cases",
+    "Changing test_calculator.py",
+    "Adding new functions or refactoring beyond the bug fix"
   ],
   "acceptance_criteria": [
     {
@@ -20,18 +21,19 @@
       "id": "AC-2",
       "type": "executable",
       "check": "python3 -c \"from calculator import average; assert average([2, 4, 6]) == 4\"",
-      "expected": "Test passes"
+      "expected": "Assertion succeeds"
     },
     {
       "id": "AC-3",
       "type": "executable",
       "check": "python3 -c \"from calculator import average; assert average([5]) == 5\"",
-      "expected": "Test passes"
+      "expected": "Assertion succeeds"
     },
     {
       "id": "AC-4",
       "type": "judgment",
-      "check": "Is the median() function unchanged from the original code?"
+      "check": "Does the median() function remain unchanged?",
+      "expected": "Yes"
     }
   ]
 }
