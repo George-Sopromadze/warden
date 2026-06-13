@@ -1,0 +1,22 @@
+{
+  "tasks": [
+    {
+      "id": "T-1",
+      "description": "Create greet.py module with greet(name) function that returns 'Hello, <name>!' formatted string",
+      "files": [
+        "greet.py"
+      ],
+      "depends_on": []
+    },
+    {
+      "id": "T-2",
+      "description": "Create test_greet.py with pytest tests that verify greet function behavior",
+      "files": [
+        "test_greet.py"
+      ],
+      "depends_on": [
+        "T-1"
+      ]
+    }
+  ]
+}
