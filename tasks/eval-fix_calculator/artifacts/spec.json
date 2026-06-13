@@ -1,38 +1,37 @@
 {
-  "goal": "Fix the average() function in calculator.py to correctly compute the arithmetic mean by dividing the sum by the correct count of numbers, not count minus one.",
+  "goal": "Fix the average() function in calculator.py so it correctly computes the arithmetic mean of a list of numbers",
   "scope": [
-    "Fix the average() function in calculator.py",
-    "Ensure all tests in test_calculator.py pass"
+    "calculator.py - average() function",
+    "test_calculator.py - verify all tests pass"
   ],
   "out_of_scope": [
-    "Modifying the median() function",
-    "Adding new functions or tests",
-    "Changing test_calculator.py"
+    "Changes to median() function",
+    "Changes to test_calculator.py",
+    "Changes to any other files"
   ],
   "acceptance_criteria": [
     {
       "id": "AC-1",
       "type": "executable",
-      "check": "python3 -m pytest test_calculator.py::test_average_basic -v",
-      "expected": "PASSED"
+      "check": "python3 -m pytest test_calculator.py -v",
+      "expected": "All tests pass"
     },
     {
       "id": "AC-2",
       "type": "executable",
-      "check": "python3 -m pytest test_calculator.py::test_average_single -v",
-      "expected": "PASSED"
+      "check": "python3 -c \"from calculator import average; assert average([2, 4, 6]) == 4\"",
+      "expected": "Test passes"
     },
     {
       "id": "AC-3",
       "type": "executable",
-      "check": "python3 -m pytest test_calculator.py::test_median_odd -v",
-      "expected": "PASSED"
+      "check": "python3 -c \"from calculator import average; assert average([5]) == 5\"",
+      "expected": "Test passes"
     },
     {
       "id": "AC-4",
-      "type": "executable",
-      "check": "python3 -m pytest test_calculator.py -v",
-      "expected": "all tests pass"
+      "type": "judgment",
+      "check": "Is the median() function unchanged from the original code?"
     }
   ]
 }
