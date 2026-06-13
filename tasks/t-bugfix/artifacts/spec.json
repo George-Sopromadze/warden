@@ -1,0 +1,38 @@
+{
+  "goal": "Fix the bug in the average() function that divides by (len(numbers) - 1) instead of len(numbers), causing incorrect calculations and a crash on single-element lists",
+  "scope": [
+    "Fix the average() function in calculator.py",
+    "Ensure all 4 tests in test_calculator.py pass"
+  ],
+  "out_of_scope": [
+    "Modifying the median() function",
+    "Adding new functions or tests",
+    "Refactoring unrelated code"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "type": "executable",
+      "check": "pytest test_calculator.py passes all 4 tests",
+      "expected": "4 passed"
+    },
+    {
+      "id": "AC-2",
+      "type": "executable",
+      "check": "average([2, 4, 6]) returns 4.0",
+      "expected": "4.0"
+    },
+    {
+      "id": "AC-3",
+      "type": "executable",
+      "check": "average([5]) returns 5.0 without crashing",
+      "expected": "5.0"
+    },
+    {
+      "id": "AC-4",
+      "type": "judgment",
+      "check": "The median() function is unchanged and still works correctly"
+    }
+  ],
+  "flags": []
+}
