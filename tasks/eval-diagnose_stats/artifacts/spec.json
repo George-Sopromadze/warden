@@ -1,22 +1,40 @@
 {
-  "goal": "Toy goal for eval-diagnose_stats: create README with required content",
+  "goal": "Find and fix the bug in stats.py so that all tests in test_stats.py pass without modifying the tests.",
   "scope": [
-    "README.md"
+    "Fix the mean() function to correctly calculate the average of numbers",
+    "Verify variance() and stdev() functions work correctly with the fixed mean()"
   ],
   "out_of_scope": [
-    "everything else"
+    "Modifying test_stats.py",
+    "Adding new functions or tests"
   ],
   "acceptance_criteria": [
     {
       "id": "AC-1",
       "type": "executable",
-      "check": "test -f workdir/README.md",
-      "expected": "exit 0"
+      "check": "python3 -m pytest test_stats.py::test_mean -v",
+      "expected": "test passes"
     },
     {
       "id": "AC-2",
-      "type": "judgment",
-      "check": "Is the README understandable to a newcomer?"
+      "type": "executable",
+      "check": "python3 -m pytest test_stats.py::test_variance -v",
+      "expected": "test passes"
+    },
+    {
+      "id": "AC-3",
+      "type": "executable",
+      "check": "python3 -m pytest test_stats.py::test_stdev -v",
+      "expected": "test passes"
+    },
+    {
+      "id": "AC-4",
+      "type": "executable",
+      "check": "python3 -m pytest test_stats.py -v",
+      "expected": "all tests pass"
     }
+  ],
+  "flags": [
+    "The mean() function has a bug on line 2: it divides by (len(numbers) + 1) instead of len(numbers), causing all mean calculations to be incorrect"
   ]
 }
