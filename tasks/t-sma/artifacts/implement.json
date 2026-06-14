@@ -1,0 +1,7 @@
+{
+  "summary": "Created sma.py with simple_moving_average(prices, window) returning None for the first window-1 entries and computed averages thereafter, raising ValueError for empty prices or window < 1. Created test_sma.py with 6 pytest cases covering normal case, window=1, window equal to len(prices), window larger than prices, empty prices ValueError, and window=0 ValueError. All 6 tests pass.",
+  "files_changed": [
+    "sma.py",
+    "test_sma.py"
+  ]
+}
