@@ -209,22 +209,6 @@ def run_agent(task_id: str, stage: str, role: str, mode: str) -> dict:
 
 
 def _extract_artifact(stdout: str):
-    """Pull the stage artifact out of Claude Code's --output-format json envelope.
-    Robust to markdown fences, preambles, and trailing chatter."""
-    _result = _extract_artifact_inner(stdout)
-    if _result is None:
-        try:
-            from pathlib import Path as _P
-            with (_P(__file__).resolve().parent.parent / "tasks" / "DEBUG_extract.log").open("a") as _f:
-                _f.write("\n===== EXTRACTION FAILED — raw stdout below =====\n")
-                _f.write(stdout[:4000])
-                _f.write("\n===== end =====\n")
-        except Exception:
-            pass
-    return _result
-
-
-def _extract_artifact_inner(stdout: str):
     try:
         env = json.loads(stdout)
     except json.JSONDecodeError:
@@ -235,6 +219,16 @@ def _extract_artifact_inner(stdout: str):
     if not isinstance(text, str):
         return None
     text = text.strip()
+    # 0. Prefer a fenced ```json ... ``` block ANYWHERE in the text. Agents often
+    #    wrap the JSON in explanatory prose, and that prose can contain stray { }
+    #    (e.g. f-strings like {name}) that fool the brace-span fallback below.
+    import re as _re
+    _m = _re.search(r"```(?:json)?\s*\n(.*?)```", text, _re.S)
+    if _m:
+        try:
+            return json.loads(_m.group(1).strip())
+        except json.JSONDecodeError:
+            pass
     # 1. Strip a leading ```json / ``` fence and trailing ``` if present.
     if text.startswith("```"):
         text = text.split("\n", 1)[-1]
