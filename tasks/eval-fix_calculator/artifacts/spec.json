@@ -1,22 +1,26 @@
 {
-  "goal": "Toy goal for eval-fix_calculator: create README with required content",
+  "goal": "Fix the bug in the average() function in calculator.py so that all tests in test_calculator.py pass",
   "scope": [
-    "README.md"
+    "calculator.py - average() function only",
+    "Run test_calculator.py to verify the fix"
   ],
   "out_of_scope": [
-    "everything else"
+    "Modifying the median() function",
+    "Modifying test_calculator.py",
+    "Adding new functions or tests"
   ],
   "acceptance_criteria": [
     {
       "id": "AC-1",
       "type": "executable",
-      "check": "test -f workdir/README.md",
-      "expected": "exit 0"
+      "check": "python3 -m pytest test_calculator.py -v",
+      "expected": "All tests pass"
     },
     {
       "id": "AC-2",
       "type": "judgment",
-      "check": "Is the README understandable to a newcomer?"
+      "check": "Is the fix only in the average() function and the median() function unchanged?"
     }
-  ]
+  ],
+  "flags": []
 }
