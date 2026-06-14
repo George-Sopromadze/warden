@@ -1,0 +1,23 @@
+{
+  "tasks": [
+    {
+      "id": "T-1",
+      "description": "Create hello.py module that prints 'hello from my bot test'",
+      "files": [
+        "/Users/George/warden/tasks/t-bottest/workdir/hello.py"
+      ],
+      "depends_on": []
+    },
+    {
+      "id": "T-2",
+      "description": "Create test_hello.py with pytest tests to verify hello.py output",
+      "files": [
+        "/Users/George/warden/tasks/t-bottest/workdir/test_hello.py"
+      ],
+      "depends_on": [
+        "T-1"
+      ]
+    }
+  ],
+  "flags": []
+}
