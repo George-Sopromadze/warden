@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# WARDEN heartbeat: pings Healthchecks.io only while the approval bot is alive.
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+HEALTHCHECK_URL=""
+if [ -f "$HOME/.warden/secrets.env" ]; then
+  HEALTHCHECK_URL="$(grep -E '^HEALTHCHECK_URL=' "$HOME/.warden/secrets.env" | head -1 | cut -d= -f2-)"
+fi
+if [ -z "$HEALTHCHECK_URL" ]; then
+  echo "$(date '+%F %T') no HEALTHCHECK_URL — not pinging" >> "$ROOT/tasks/.heartbeat.log"
+  exit 0
+fi
+if pgrep -f "pipeline/approval_bot.py" >/dev/null 2>&1; then
+  curl -fsS -m 10 "$HEALTHCHECK_URL" >/dev/null 2>&1 \
+    && echo "$(date '+%F %T') ping ok (bot alive)" >> "$ROOT/tasks/.heartbeat.log" \
+    || echo "$(date '+%F %T') ping FAILED (network?)" >> "$ROOT/tasks/.heartbeat.log"
+else
+  curl -fsS -m 10 "$HEALTHCHECK_URL/fail" >/dev/null 2>&1
+  echo "$(date '+%F %T') bot DOWN — sent /fail signal" >> "$ROOT/tasks/.heartbeat.log"
+fi
