@@ -152,7 +152,7 @@ def rerun_from_implement(task_id: str, task_dir) -> None:
 def resume_pipeline(task_id: str) -> None:
     subprocess.Popen([sys.executable, str(ROOT / "pipeline" / "run.py"),
                       "run", task_id,
-                      "--agent-mode", os.environ.get("WARDEN_AGENT_MODE", "stub")])
+                      "--agent-mode", os.environ.get("WARDEN_AGENT_MODE", "claude")])
 
 
 def handle_message(msg: dict) -> None:
