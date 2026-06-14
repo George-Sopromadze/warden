@@ -1,0 +1,33 @@
+{
+  "goal": "Create greet.py module with a greet(name) function that returns 'Hello, <name>!' formatted greeting strings, and create test_greet.py with comprehensive test cases.",
+  "scope": [
+    "Create greet.py with greet(name) function that returns 'Hello, <name>!'",
+    "Create test_greet.py with test cases for the greet function",
+    "Ensure both files are in the task working directory (/Users/George/warden/tasks/t-fb2/workdir)"
+  ],
+  "out_of_scope": [
+    "Documentation or README files",
+    "Additional utility functions or modules",
+    "Type hints or static type annotations",
+    "Command-line interface or script execution"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "type": "executable",
+      "check": "python3 -c \"from greet import greet; assert greet('World') == 'Hello, World!'\"",
+      "expected": "greet function returns correctly formatted greeting string"
+    },
+    {
+      "id": "AC-2",
+      "type": "executable",
+      "check": "python3 -m pytest test_greet.py -v",
+      "expected": "All test cases pass successfully"
+    },
+    {
+      "id": "AC-3",
+      "type": "judgment",
+      "check": "Does test_greet.py include test cases covering normal inputs, edge cases, and the expected output format?"
+    }
+  ]
+}
