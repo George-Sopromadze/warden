@@ -1,0 +1,35 @@
+{
+  "goal": "Implement a simple_moving_average function in sma.py and a comprehensive pytest suite in test_sma.py covering normal and edge cases.",
+  "scope": [
+    "Create sma.py with simple_moving_average(prices, window) function that returns a list where result[i] is the average of the window prices ending at index i, with the first window-1 entries as None",
+    "Create test_sma.py with pytest test cases covering: normal case, window=1, window equal to len(prices), window larger than prices, empty prices (ValueError), and window=0 (ValueError)"
+  ],
+  "out_of_scope": [
+    "Exponential moving average or other moving average variants",
+    "Performance optimization for large datasets",
+    "CLI interface or script entry point",
+    "Type annotations or data validation beyond the specified ValueError cases"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "type": "executable",
+      "check": "python3 -m pytest test_sma.py -v"
+    },
+    {
+      "id": "AC-2",
+      "type": "judgment",
+      "check": "Does simple_moving_average return None for the first window-1 entries when window > 1?"
+    },
+    {
+      "id": "AC-3",
+      "type": "judgment",
+      "check": "Does simple_moving_average raise ValueError when prices is empty?"
+    },
+    {
+      "id": "AC-4",
+      "type": "judgment",
+      "check": "Does simple_moving_average raise ValueError when window < 1 (e.g. window=0)?"
+    }
+  ]
+}
