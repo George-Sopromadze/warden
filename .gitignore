@@ -8,3 +8,5 @@ tasks/eval-*/
 tasks/.bot.pid
 tasks/.bot.log
 tasks/.bot.launchd.log
+tasks/.heartbeat.log
+tasks/.heartbeat.launchd.log
