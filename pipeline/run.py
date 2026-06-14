@@ -141,10 +141,7 @@ def run_agent(task_id: str, stage: str, role: str, mode: str) -> dict:
         f"## Required output schema (your JSON MUST conform exactly to this)\n"
         f"```json\n{schema_text}\n```\n\n"
         f"Do the stage's actual work now (read/edit files in the working "
-        f"directory as needed). For the implement stage: the working directory "
-        f"may be EMPTY — do not assume files already exist; create every file "
-        f"the plan lists using your tools and verify they exist before "
-        f"reporting. Then return the `{stage}` artifact as a single "
+        f"directory as needed), then return the `{stage}` artifact as a single "
         f"JSON object conforming EXACTLY to the schema above — use those exact "
         f"field names, no extra fields. Return ONLY the JSON object, nothing else."
     )
@@ -167,18 +164,12 @@ def run_agent(task_id: str, stage: str, role: str, mode: str) -> dict:
     # confine work to the task workdir (Phase 6 will tighten this further).
     if stage == "implement":
         cmd += ["--allowedTools", "Read,Write,Edit,Bash,Grep,Glob"]
-    if stage == "test":
-        cmd += ["--allowedTools", "Read,Bash,Grep,Glob"]
 
     log_event(task_id, "agent_start", {"stage": stage, "role": role,
                                        "cmd": " ".join(shlex.quote(c) for c in cmd[:2])})
     try:
-        agent_env = dict(os.environ)
-        agent_env["WARDEN_WORKDIR"] = str((task_dir(task_id) / "workdir").resolve())
-        agent_env.setdefault("WARDEN_ALLOWED_HOSTS", "api.anthropic.com")
         proc = subprocess.run(cmd, capture_output=True, text=True,
                               cwd=task_dir(task_id) / "workdir",
-                              env=agent_env,
                               timeout=int(os.environ.get("WARDEN_AGENT_TIMEOUT", "180")))
     except subprocess.TimeoutExpired:
         raise StageFailure("agent call timed out "
@@ -652,9 +643,6 @@ def workdir_is_repo(task_id: str) -> bool:
 
 def init_workdir_repo(task_id: str) -> str:
     """Each task workdir is its own git repo, so rollback has a precise target."""
-    # Seed a .gitignore so build cruft never enters diffs or scope checks.
-    (task_dir(task_id) / "workdir" / ".gitignore").write_text(
-        "__pycache__/\n*.pyc\n*.pyo\n.pytest_cache/\nnode_modules/\n.DS_Store\n")
     _wgit(task_id, "init", "-q")
     _wgit(task_id, "config", "user.email", "warden@local")
     _wgit(task_id, "config", "user.name", "warden")
@@ -748,6 +736,51 @@ def cmd_new(task_id: str, description: str) -> None:
     print(f"[warden] created {task_id} at stage '{STAGES[0]}'")
 
 
+def run_triple_review(task_id: str, agent_mode: str) -> dict:
+    """Idea 1: three reviewers judge BLIND, then a DETERMINISTIC tally decides
+    (2+ blocking votes => fail). Writes review-{1,2,3}.json + combined review.json."""
+    panel = [m.strip() for m in os.environ.get("WARDEN_REVIEW_PANEL", "").split(",") if m.strip()]
+    if not panel:
+        one = os.environ.get("WARDEN_REVIEWER_MODEL", "")
+        panel = [one, one, one] if one else ["", "", ""]
+    panel = (panel + panel[-1:] * 3)[:3]
+    td = task_dir(task_id)
+    verdicts = []
+    total_usage = {"usage": {"input_tokens": 0, "output_tokens": 0}}
+    for i, model in enumerate(panel, start=1):
+        prev = os.environ.get("WARDEN_REVIEWER_MODEL")
+        if model:
+            os.environ["WARDEN_REVIEWER_MODEL"] = model
+        try:
+            u = run_agent(task_id, "review", "reviewer", agent_mode)
+        finally:
+            if prev is not None:
+                os.environ["WARDEN_REVIEWER_MODEL"] = prev
+        uu = u.get("usage", {})
+        total_usage["usage"]["input_tokens"] += uu.get("input_tokens", 0)
+        total_usage["usage"]["output_tokens"] += uu.get("output_tokens", 0)
+        src = td / "artifacts" / "review.json"
+        v = json.loads(src.read_text())
+        (td / "artifacts" / f"review-{i}.json").write_text(json.dumps(v, indent=2))
+        verdicts.append(v)
+        log_event(task_id, "review_vote", {"seat": i, "model": model or "default",
+                                           "verdict": v.get("verdict"),
+                                           "blocking": bool(v.get("blocking"))})
+    blocking_votes = sum(1 for v in verdicts if v.get("blocking"))
+    panel_blocks = blocking_votes >= 2
+    combined = {
+        "verdict": "request_changes" if panel_blocks else "approve",
+        "blocking": panel_blocks,
+        "findings": [f for v in verdicts for f in v.get("findings", [])],
+        "flags": [f for v in verdicts for f in v.get("flags", [])]
+                 + [f"panel: {blocking_votes}/3 reviewers flagged blocking"],
+    }
+    (td / "artifacts" / "review.json").write_text(json.dumps(combined, indent=2))
+    log_event(task_id, "review_panel", {"blocking_votes": blocking_votes,
+                                         "decision": combined["verdict"]})
+    return total_usage
+
+
 def cmd_run(task_id: str, agent_mode: str) -> None:
     state = load_state(task_id)
     if state["status"] == "escalated":
@@ -793,7 +826,12 @@ def cmd_run(task_id: str, agent_mode: str) -> None:
         log_event(task_id, "stage_start", {"stage": stage, "attempt": attempt})
 
         try:
-            if role is not None:
+            if stage == "review" and os.environ.get("WARDEN_TRIPLE_REVIEW") == "1":
+                usage = run_triple_review(task_id, agent_mode)
+                u = usage.get("usage", {})
+                budget["tokens_spent"] += u.get("input_tokens", 0) + u.get("output_tokens", 0)
+                save_state(task_id, state)
+            elif role is not None:
                 usage = run_agent(task_id, stage, role, agent_mode)
                 u = usage.get("usage", {})
                 budget["tokens_spent"] += u.get("input_tokens", 0) + u.get("output_tokens", 0)
