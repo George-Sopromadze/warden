@@ -30,7 +30,6 @@ if [ -d "$WORKDIR/.git" ]; then
     [ -z "$f" ] && continue
     case "$f" in
       __pycache__/*|*/__pycache__/*|*.pyc|*.pyo|.pytest_cache/*|*/.pytest_cache/*|node_modules/*|.gitignore) continue ;;
-      README.md|*/README.md) continue ;;
     esac
     base=$(basename "$f")
     if echo "$allowed" | grep -qxF "$f" || echo "$allowed" | grep -qF "/$base" || echo "$allowed" | grep -qxF "$base"; then

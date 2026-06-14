@@ -1,0 +1,7 @@
+{
+  "on_track": false,
+  "violated_criteria": [
+    "scope: README.md is not in the spec's declared scope [\"Create greet.py with greet(name) function that returns 'Hello, <name>!'\", 'Create test_greet.py with test cases for the greet function', 'Ensure both files are in the task working directory (/Users/George/warden/tasks/t-fb2/workdir)']"
+  ],
+  "reasoning": "the work has drifted from the spec's declared scope"
+}
