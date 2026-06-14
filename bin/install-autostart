@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Install/uninstall the macOS LaunchAgent that keeps the WARDEN approval bot
+# running and auto-starts it at login.
+#   bin/install-autostart           install + start
+#   bin/install-autostart remove    stop + uninstall
+#   bin/install-autostart status    is it loaded?
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+LABEL="com.warden.bot"
+PLIST_SRC="$ROOT/deploy/com.warden.bot.plist"
+PLIST_DST="$HOME/Library/LaunchAgents/$LABEL.plist"
+PY="$(command -v python3 || echo /usr/bin/python3)"
+cmd="${1:-install}"
+case "$cmd" in
+  install)
+    pkill -f "pipeline/approval_bot.py" 2>/dev/null; sleep 1
+    mkdir -p "$HOME/Library/LaunchAgents"
+    sed -e "s#__WARDEN__#$ROOT#g" -e "s#__PY__#$PY#g" "$PLIST_SRC" > "$PLIST_DST"
+    echo "wrote $PLIST_DST"
+    launchctl unload "$PLIST_DST" 2>/dev/null
+    launchctl load "$PLIST_DST" 2>/dev/null
+    sleep 2
+    if launchctl list | grep -q "$LABEL"; then
+      echo "installed and loaded — auto-starts at login, restarts if it dies"
+      echo "check: bin/bot status"
+    else
+      echo "loaded but not listed — check $ROOT/tasks/.bot.launchd.log"
+    fi
+    ;;
+  remove)
+    launchctl unload "$PLIST_DST" 2>/dev/null
+    rm -f "$PLIST_DST"
+    pkill -f "pipeline/approval_bot.py" 2>/dev/null
+    echo "uninstalled — bot no longer auto-starts (bin/bot start still works)"
+    ;;
+  status)
+    if launchctl list | grep -q "$LABEL"; then
+      echo "auto-start INSTALLED"; launchctl list | grep "$LABEL"
+    else echo "auto-start NOT installed"; fi
+    ;;
+  *) echo "usage: bin/install-autostart {install|remove|status}"; exit 1 ;;
+esac
