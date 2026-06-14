@@ -1,0 +1,13 @@
+{
+  "verdict": "approve",
+  "blocking": false,
+  "findings": [
+    {
+      "severity": "info",
+      "description": "When window is larger than len(prices) all results are None and no average is ever computed; this is correct per the spec since there is never enough data, but worth noting as a documented edge case."
+    }
+  ],
+  "flags": [
+    "panel: 0/3 reviewers flagged blocking"
+  ]
+}
