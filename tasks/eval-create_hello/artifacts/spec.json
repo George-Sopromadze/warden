@@ -1,47 +1,33 @@
 {
-  "goal": "Create hello.py that prints 'hello world' and test_hello.py with a pytest that imports and validates it",
+  "goal": "Create hello.py that prints 'hello world' and a pytest test suite in test_hello.py that verifies the hello.py module functionality",
   "scope": [
     "Create hello.py with a function or script that prints 'hello world'",
-    "Create test_hello.py with pytest test cases that import and validate hello.py",
-    "Ensure tests pass and validate the functionality"
+    "Create test_hello.py with pytest tests that import and validate hello.py",
+    "Ensure both files are in the working directory"
   ],
   "out_of_scope": [
-    "Additional module functionality beyond printing 'hello world'",
-    "Complex test fixtures or parametrization",
-    "Performance testing or benchmarking",
-    "CI/CD pipeline setup",
-    "Documentation generation"
+    "Setting up pytest configuration files beyond basic usage",
+    "Adding additional utility functions or modules",
+    "Setting up CI/CD pipelines",
+    "Documentation beyond inline comments"
   ],
   "acceptance_criteria": [
     {
       "id": "AC-1",
       "type": "executable",
-      "check": "python3 -c \"import sys; sys.path.insert(0, '/Users/George/warden/tasks/eval-create_hello/workdir'); from hello import main; import io; from contextlib import redirect_stdout; f = io.StringIO(); redirect_stdout(f).write('test'); output = f.getvalue() if hasattr(f, 'getvalue') else ''; exec('from hello import *'); print('hello module imported successfully')\"",
-      "expected": "hello module imports without error"
+      "check": "python3 -c \"import hello; hello.hello()\" | grep -q 'hello world'",
+      "expected": "Output contains 'hello world'"
     },
     {
       "id": "AC-2",
       "type": "executable",
-      "check": "test -f /Users/George/warden/tasks/eval-create_hello/workdir/hello.py",
-      "expected": "hello.py file exists"
+      "check": "python3 -m pytest test_hello.py -v",
+      "expected": "All tests pass"
     },
     {
       "id": "AC-3",
-      "type": "executable",
-      "check": "test -f /Users/George/warden/tasks/eval-create_hello/workdir/test_hello.py",
-      "expected": "test_hello.py file exists"
-    },
-    {
-      "id": "AC-4",
-      "type": "executable",
-      "check": "cd /Users/George/warden/tasks/eval-create_hello/workdir && python3 -m pytest test_hello.py -v",
-      "expected": "All pytest tests pass"
-    },
-    {
-      "id": "AC-5",
       "type": "judgment",
-      "check": "Does hello.py correctly print 'hello world' when executed or called?",
-      "expected": "Outputs 'hello world'"
+      "check": "Does test_hello.py successfully import the hello module and test its functionality?"
     }
   ]
 }
