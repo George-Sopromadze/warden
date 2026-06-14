@@ -103,10 +103,72 @@ def set_status(task_dir: Path, status: str) -> None:
     os.replace(tmp, sp)
 
 
+PENDING_FB = TASKS / ".pending_feedback"
+
+
+def set_pending_feedback(task_id: str) -> None:
+    PENDING_FB.write_text(task_id)
+
+
+def get_pending_feedback() -> str:
+    return PENDING_FB.read_text().strip() if PENDING_FB.exists() else ""
+
+
+def clear_pending_feedback() -> None:
+    if PENDING_FB.exists():
+        PENDING_FB.unlink()
+
+
+def inject_feedback(task_dir, note: str) -> None:
+    fb = task_dir / "feedback.md"
+    stamp = time.strftime("%Y-%m-%dT%H:%M:%S%z")
+    with fb.open("a") as f:
+        f.write(f"\n## Human rejection feedback ({stamp})\n{note}\n")
+
+
+def rerun_from_implement(task_id: str, task_dir) -> None:
+    sp = task_dir / "state.json"
+    state = json.loads(sp.read_text())
+    state["stage"] = "implement"
+    state["status"] = "pending"
+    state.setdefault("stages", {}).setdefault("implement", {})
+    state["stages"]["implement"]["attempts"] = 0
+    state.pop("pending_approval", None)
+    tmp = sp.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(state, indent=2) + "\n")
+    os.replace(tmp, sp)
+    resume_pipeline(task_id)
+
+
 def resume_pipeline(task_id: str) -> None:
     subprocess.Popen([sys.executable, str(ROOT / "pipeline" / "run.py"),
                       "run", task_id,
                       "--agent-mode", os.environ.get("WARDEN_AGENT_MODE", "stub")])
+
+
+def handle_message(msg: dict) -> None:
+    from_id = str(msg.get("from", {}).get("id", ""))
+    if from_id != str(ALLOWED_ID):
+        log(f"IGNORED message from unauthorized id {from_id}")
+        return
+    note = (msg.get("text") or "").strip()
+    if not note:
+        return
+    task_id = get_pending_feedback()
+    if not task_id:
+        log("text ignored (no task awaiting feedback)")
+        return
+    task_dir = (TASKS / task_id).resolve()
+    if not str(task_dir).startswith(str(TASKS.resolve())) or not task_dir.is_dir():
+        clear_pending_feedback()
+        return
+    clear_pending_feedback()
+    inject_feedback(task_dir, note)
+    rerun_from_implement(task_id, task_dir)
+    tg("sendMessage", chat_id=ALLOWED_ID, text=(
+        f"🔁 {task_id}: feedback received. Redoing from the implement "
+        f"stage — I'll send a new approval request when it's ready."))
+    log(f"{task_id}: feedback injected, re-running from implement")
 
 
 def handle_callback(cb: dict) -> None:
@@ -143,15 +205,21 @@ def handle_callback(cb: dict) -> None:
         log(f"{task_id}: approved")
 
     elif action == "reject":
-        write_approval(task_dir, False, f"telegram:{from_id}")
-        # Rejection routes through the orchestrator's escalation on next run;
-        # mark it directly so it halts even if nothing re-runs it.
-        set_status(task_dir, "escalated")
-        (task_dir / "NEEDS_HUMAN").write_text(
-            f"rejected via Telegram by {from_id}\n")
-        tg("sendMessage", chat_id=ALLOWED_ID,
-           text=f"⛔ {task_id} rejected and escalated.")
-        log(f"{task_id}: rejected")
+        if get_pending_feedback() == task_id:
+            clear_pending_feedback()
+            write_approval(task_dir, False, f"telegram:{from_id}")
+            set_status(task_dir, "escalated")
+            (task_dir / "NEEDS_HUMAN").write_text(
+                f"rejected via Telegram by {from_id}\n")
+            tg("sendMessage", chat_id=ALLOWED_ID,
+               text=f"⛔ {task_id} rejected and escalated (no feedback given).")
+            log(f"{task_id}: rejected -> escalated")
+            return
+        set_pending_feedback(task_id)
+        tg("sendMessage", chat_id=ALLOWED_ID, text=(
+            f"✋ {task_id} rejected. Reply with what to change in plain words "
+            f"(the worker will redo the code). Or tap Reject again to stop the task."))
+        log(f"{task_id}: rejected, awaiting feedback")
 
     elif action == "diff":
         tg("sendMessage", chat_id=ALLOWED_ID,
@@ -180,8 +248,8 @@ def main() -> None:
                 log(f"received update {upd['update_id']}: {', '.join(k for k in upd if k != 'update_id')}")
                 if "callback_query" in upd:
                     handle_callback(upd["callback_query"])
-                # All other update types (messages, etc.) are deliberately
-                # ignored: chat text is never a command (Phase 6 policy).
+                elif "message" in upd:
+                    handle_message(upd["message"])
         except KeyboardInterrupt:
             raise
         except Exception as e:

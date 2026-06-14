@@ -133,10 +133,21 @@ def run_agent(task_id: str, stage: str, role: str, mode: str) -> dict:
     if schema_name:
         schema_text = (SCHEMAS_DIR / schema_name).read_text()
 
+    feedback_path = task_dir(task_id) / "feedback.md"
+    feedback_block = ""
+    if feedback_path.exists():
+        feedback_block = (
+            f"## IMPORTANT - human reviewer feedback to address\n"
+            f"A human rejected the previous attempt and asked for these changes. "
+            f"You MUST address this feedback in your work now:\n"
+            f"{feedback_path.read_text().strip()}\n\n"
+        )
+
     prompt = (
         f"WARDEN stage: {stage}\n"
         f"Task folder: {task_dir(task_id)}\n\n"
         f"## Task\n{task_desc}\n\n"
+        f"{feedback_block}"
         f"## Prior stage artifacts\n{prior}\n\n"
         f"## Required output schema (your JSON MUST conform exactly to this)\n"
         f"```json\n{schema_text}\n```\n\n"
@@ -736,51 +747,6 @@ def cmd_new(task_id: str, description: str) -> None:
     print(f"[warden] created {task_id} at stage '{STAGES[0]}'")
 
 
-def run_triple_review(task_id: str, agent_mode: str) -> dict:
-    """Idea 1: three reviewers judge BLIND, then a DETERMINISTIC tally decides
-    (2+ blocking votes => fail). Writes review-{1,2,3}.json + combined review.json."""
-    panel = [m.strip() for m in os.environ.get("WARDEN_REVIEW_PANEL", "").split(",") if m.strip()]
-    if not panel:
-        one = os.environ.get("WARDEN_REVIEWER_MODEL", "")
-        panel = [one, one, one] if one else ["", "", ""]
-    panel = (panel + panel[-1:] * 3)[:3]
-    td = task_dir(task_id)
-    verdicts = []
-    total_usage = {"usage": {"input_tokens": 0, "output_tokens": 0}}
-    for i, model in enumerate(panel, start=1):
-        prev = os.environ.get("WARDEN_REVIEWER_MODEL")
-        if model:
-            os.environ["WARDEN_REVIEWER_MODEL"] = model
-        try:
-            u = run_agent(task_id, "review", "reviewer", agent_mode)
-        finally:
-            if prev is not None:
-                os.environ["WARDEN_REVIEWER_MODEL"] = prev
-        uu = u.get("usage", {})
-        total_usage["usage"]["input_tokens"] += uu.get("input_tokens", 0)
-        total_usage["usage"]["output_tokens"] += uu.get("output_tokens", 0)
-        src = td / "artifacts" / "review.json"
-        v = json.loads(src.read_text())
-        (td / "artifacts" / f"review-{i}.json").write_text(json.dumps(v, indent=2))
-        verdicts.append(v)
-        log_event(task_id, "review_vote", {"seat": i, "model": model or "default",
-                                           "verdict": v.get("verdict"),
-                                           "blocking": bool(v.get("blocking"))})
-    blocking_votes = sum(1 for v in verdicts if v.get("blocking"))
-    panel_blocks = blocking_votes >= 2
-    combined = {
-        "verdict": "request_changes" if panel_blocks else "approve",
-        "blocking": panel_blocks,
-        "findings": [f for v in verdicts for f in v.get("findings", [])],
-        "flags": [f for v in verdicts for f in v.get("flags", [])]
-                 + [f"panel: {blocking_votes}/3 reviewers flagged blocking"],
-    }
-    (td / "artifacts" / "review.json").write_text(json.dumps(combined, indent=2))
-    log_event(task_id, "review_panel", {"blocking_votes": blocking_votes,
-                                         "decision": combined["verdict"]})
-    return total_usage
-
-
 def cmd_run(task_id: str, agent_mode: str) -> None:
     state = load_state(task_id)
     if state["status"] == "escalated":
@@ -826,12 +792,7 @@ def cmd_run(task_id: str, agent_mode: str) -> None:
         log_event(task_id, "stage_start", {"stage": stage, "attempt": attempt})
 
         try:
-            if stage == "review" and os.environ.get("WARDEN_TRIPLE_REVIEW") == "1":
-                usage = run_triple_review(task_id, agent_mode)
-                u = usage.get("usage", {})
-                budget["tokens_spent"] += u.get("input_tokens", 0) + u.get("output_tokens", 0)
-                save_state(task_id, state)
-            elif role is not None:
+            if role is not None:
                 usage = run_agent(task_id, stage, role, agent_mode)
                 u = usage.get("usage", {})
                 budget["tokens_spent"] += u.get("input_tokens", 0) + u.get("output_tokens", 0)
