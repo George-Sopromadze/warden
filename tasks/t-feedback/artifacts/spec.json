@@ -1,0 +1,40 @@
+{
+  "goal": "Create a Python greeting module with a greet function and comprehensive test suite using pytest",
+  "scope": [
+    "Create greet.py with a greet(name) function that returns 'Hello, <name>!'",
+    "Create test_greet.py with pytest test cases for the greet function",
+    "Ensure tests cover the basic functionality of the greet function"
+  ],
+  "out_of_scope": [
+    "Error handling for non-string inputs",
+    "Edge case handling (empty strings, special characters)",
+    "Documentation or type hints",
+    "Multiple greeting variations or configuration"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "type": "executable",
+      "check": "test -f /Users/George/warden/tasks/t-feedback/workdir/greet.py",
+      "expected": "greet.py file exists"
+    },
+    {
+      "id": "AC-2",
+      "type": "executable",
+      "check": "test -f /Users/George/warden/tasks/t-feedback/workdir/test_greet.py",
+      "expected": "test_greet.py file exists"
+    },
+    {
+      "id": "AC-3",
+      "type": "executable",
+      "check": "python3 -c \"import sys; sys.path.insert(0, '/Users/George/warden/tasks/t-feedback/workdir'); from greet import greet; assert greet('World') == 'Hello, World!'\"",
+      "expected": "greet function returns correct formatted string"
+    },
+    {
+      "id": "AC-4",
+      "type": "executable",
+      "check": "cd /Users/George/warden/tasks/t-feedback/workdir && python3 -m pytest test_greet.py -v",
+      "expected": "All pytest tests pass"
+    }
+  ]
+}
