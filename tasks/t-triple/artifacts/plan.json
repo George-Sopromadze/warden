@@ -1,0 +1,22 @@
+{
+  "tasks": [
+    {
+      "id": "T-1",
+      "description": "Create divide.py module with divide(a, b) function that returns a/b and raises ValueError when b equals zero",
+      "files": [
+        "divide.py"
+      ],
+      "depends_on": []
+    },
+    {
+      "id": "T-2",
+      "description": "Create test_divide.py with pytest test cases covering normal division operations and division by zero error handling",
+      "files": [
+        "test_divide.py"
+      ],
+      "depends_on": [
+        "T-1"
+      ]
+    }
+  ]
+}
