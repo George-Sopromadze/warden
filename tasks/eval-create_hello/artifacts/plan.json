@@ -2,11 +2,21 @@
   "tasks": [
     {
       "id": "T-1",
-      "description": "Write the README",
+      "description": "Create hello.py with a main function that prints 'hello world'",
       "files": [
-        "README.md"
+        "hello.py"
       ],
       "depends_on": []
+    },
+    {
+      "id": "T-2",
+      "description": "Create test_hello.py with pytest tests that import hello.py and validate its functionality",
+      "files": [
+        "test_hello.py"
+      ],
+      "depends_on": [
+        "T-1"
+      ]
     }
   ]
 }
