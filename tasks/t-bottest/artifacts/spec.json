@@ -1,0 +1,34 @@
+{
+  "goal": "Create a hello.py file that prints 'hello from my bot test' and write a pytest test to verify its functionality",
+  "scope": [
+    "Create hello.py in the task working directory",
+    "Create a pytest test file (test_hello.py) to test hello.py",
+    "Ensure the module and test follow Python conventions"
+  ],
+  "out_of_scope": [
+    "Setting up additional testing infrastructure beyond pytest",
+    "Creating CI/CD pipelines or configuration",
+    "Adding type hints or linting configuration",
+    "Creating documentation beyond the code itself"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "type": "executable",
+      "check": "python3 /Users/George/warden/tasks/t-bottest/workdir/hello.py | grep -q 'hello from my bot test'",
+      "expected": "Output should contain 'hello from my bot test'"
+    },
+    {
+      "id": "AC-2",
+      "type": "executable",
+      "check": "python3 -m pytest /Users/George/warden/tasks/t-bottest/workdir/test_hello.py -v",
+      "expected": "All tests pass"
+    },
+    {
+      "id": "AC-3",
+      "type": "judgment",
+      "check": "Does the test file properly verify that hello.py prints the expected output?"
+    }
+  ],
+  "flags": []
+}
