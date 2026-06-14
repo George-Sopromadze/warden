@@ -10,3 +10,4 @@ tasks/.bot.log
 tasks/.bot.launchd.log
 tasks/.heartbeat.log
 tasks/.heartbeat.launchd.log
+tasks/*/
