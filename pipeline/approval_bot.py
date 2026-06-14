@@ -129,10 +129,19 @@ def inject_feedback(task_dir, note: str) -> None:
 def rerun_from_implement(task_id: str, task_dir) -> None:
     sp = task_dir / "state.json"
     state = json.loads(sp.read_text())
+    # Roll the workdir back to the last good commit BEFORE re-running, so leftover
+    # files from the rejected attempt (e.g. a stray README) don't immediately
+    # re-fail the goal keeper / trip the stuck-detector.
+    good = state.get("last_good_commit")
+    wd = task_dir / "workdir"
+    if good and (wd / ".git").exists():
+        subprocess.run(["git", "reset", "-q", "--hard", good], cwd=wd, capture_output=True)
+        subprocess.run(["git", "clean", "-qfd"], cwd=wd, capture_output=True)
     state["stage"] = "implement"
     state["status"] = "pending"
-    state.setdefault("stages", {}).setdefault("implement", {})
-    state["stages"]["implement"]["attempts"] = 0
+    st = state.setdefault("stages", {}).setdefault("implement", {})
+    st["attempts"] = 0
+    st["last_diff_hash"] = None
     state.pop("pending_approval", None)
     tmp = sp.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(state, indent=2) + "\n")
