@@ -1,70 +1,137 @@
-# WARDEN — Phases 0 & 1 scaffold
+# WARDEN
 
-Workflow with Agents, Rules, Determinism, Escalation, Notifications.
-Repo is the only source of truth; every transition is gated by a script.
+**An autonomous AI software pipeline that turns a plain-English task into reviewed, tested, approved code — and never merges anything a human didn't sign off on, from their phone.**
 
-## Layout
+WARDEN takes a task like *"add a function that calculates a moving average, with tests"* and moves it down a fixed assembly line — `spec → plan → implement → test → review → approve → merge` — where **every stage transition is decided by a script that checks the real repository, never by a model's opinion of its own work.** A model can *claim* its tests passed; WARDEN re-runs them and believes only the result.
+
+The entire pipeline is supervised from a phone. A task pings you over Telegram, you read the actual diff, and you approve or reject by tapping — or reject *with feedback in plain words*, and the system redoes the work to address it. Tasks run on your machine; you steer them from anywhere.
+
+> **The core principle:** the repository is the only source of truth. The trust model isn't "the AI is honest" — it's "the AI's claims don't matter; only the facts the scripts verify."
+
+---
+
+## Why this exists
+
+Most autonomous coding agents ask you to trust the model's self-assessment. WARDEN is built on the opposite assumption: that you should trust *verification*, not *claims*. Every stage ends with a deterministic gate — a script that re-runs the tests, checks the diff touched only declared files, and confirms the work still matches what was asked. Same input, same verdict, every time.
+
+It's designed around three ideas that don't usually appear together:
+
+- **Determinism at every gate.** No stage advances on a model saying "looks good." A script checks the repo and returns a binary verdict.
+- **A human at the only irreversible step.** The merge — the one action you can't take back — is the one action that asks a person. That approval is cryptographically bound to the exact diff: change one character after approval and it's automatically voided.
+- **A phone as the control surface.** The whole supervision loop is mobile. You direct real code changes in plain language from your pocket.
+
+---
+
+## How it works
+
 ```
-agents/      one .md rules file per agent role
-schemas/     JSON schemas for stage artifacts (validation IS a gate)
-gates/       one executable script per gate (exit 0 = pass, JSON verdict on stdout)
-pipeline/    orchestrator (run.py)
-tasks/       one folder per task: task.md, state.json, run.jsonl, artifacts/, workdir/
-evals/       benchmark tasks (Phase 7)
-hooks/       Claude Code hook scripts (.claude/settings.json wires them)
+  spec ──► plan ──► implement ──► test ──► review ──► approve ──► merge ──► done
+   │        │          │           │         │           │          │
+   ▼        ▼          ▼           ▼         ▼           ▼          ▼
+ [gate]   [gate]    [gate]      [gate]    [gate]    [human +     [gate]
+                                                    diff-hash]
 ```
+
+Three agent roles, each on a model you choose:
+
+- **Worker** writes the code.
+- **Reviewer** judges by reading only — it literally cannot run code, so it can't talk itself into approving its own assumptions.
+- **Goal Keeper** checks, after every stage, that the work still matches what was originally asked.
+
+Between every stage sits a **deterministic gate**: a bash script that inspects the real repository and returns pass/fail. The Worker's report is never trusted on its own — the test gate re-runs the suite and believes only the exit code.
+
+---
+
+## What's in it
+
+- **Deterministic gates** — every stage ends with a script that checks the real repo (runs tests, verifies the diff stayed in scope, confirms the work matches the plan). No vibes, just verdicts.
+- **A human gate bound to the diff** — the only irreversible step (merge) is the only one that asks a human, and the approval is bound to a fingerprint of the exact diff reviewed. You can't accidentally approve something you didn't see.
+- **Phone-based control with reject-and-feedback** — approve, reject, or view the diff from Telegram. Reject asks *why*; you answer in plain English and the Worker redoes the code to address it, then returns for fresh approval.
+- **Circuit breakers** — per-stage retry limits, a total token budget, and a stuck-detector that trips on repeated identical failures. The worst case is "halted and you're notified" — never an infinite loop or a runaway bill.
+- **A regression eval suite** — real tasks with known-good outcomes. Change a prompt or swap a model, run one command, and it tells you in numbers whether you improved or broke something.
+- **Security that's been attacked** — each agent is confined to its workspace, secrets are blocked from tool arguments, and network egress is allowlisted. Tested against a planted prompt-injection file instructing the agent to exfiltrate credentials: the agent detected it, refused, reported it, and nothing moved.
+- **Runs unattended** — auto-starts on boot, restarts itself on a crash, and an external heartbeat alerts your phone if the whole machine goes down.
+
+---
 
 ## Quick start
+
 ```bash
 pip install -r requirements.txt
-python3 pipeline/run.py new task-001 "Create a README with project overview"
-python3 pipeline/run.py run task-001                # stub agents, no LLM needed
-python3 pipeline/run.py run task-001 --agent-mode claude   # real headless Claude Code
+
+# create and run a task (stub mode — no LLM, for testing the machinery)
+python3 pipeline/run.py new task-001 "Create a function that reverses a string, with tests"
+python3 pipeline/run.py run task-001
+
+# run with real headless Claude Code
+python3 pipeline/run.py run task-001 --agent-mode claude
 python3 pipeline/run.py status task-001
 ```
 
-## Phase 1 "done when" checks
-1. Toy task flows through all stages: the quick start above, stub mode.
-2. kill -9 resumability: start a run, kill it mid-stage, run again — it
-   resumes from state.json at the recorded stage.
-3. Corrupted artifact rejected: hand-edit tasks/<id>/artifacts/spec.json to
-   break the schema, re-run — the stage fails schema validation and escalates.
+For phone-based approvals, configure Telegram (see [Setup](#setup)) and run the approval listener:
 
-## Per-project gate config (env vars)
-- WARDEN_LINT_CMD, WARDEN_BUILD_CMD — used by gate_implement.sh
-- WARDEN_TEST_CMD — gate_test.sh re-runs the real suite (trust scripts, not reports)
+```bash
+python3 pipeline/approval_bot.py
+```
 
-## Secrets hygiene (Phase 0, item 4)
-Secrets live OUTSIDE the repo in ~/.warden/secrets.env; `.env*` is gitignored.
-Load them only in the orchestrator process — never into agent prompts.
+---
 
-## Claude Code invocation
-run.py uses `claude -p <prompt> --append-system-prompt <rules> --output-format json`
-per current headless docs. Verify against `claude --help` on your machine, and
-run agents inside a container with no production credentials (Phase 0, step 5).
+## Repository layout
 
-## What is deliberately stubbed (and where it gets real)
-- gate_approve.sh auto-passes        -> Phase 4 (Telegram approval, diff-hash bound)
-- gate_merge.sh records a marker     -> Phase 8 (merge queue + rebase gate)
-- escalate() halts + NEEDS_HUMAN     -> Phase 2 (retries, rollback) + Phase 4 (notify)
-- attempts/max_attempts in state     -> Phase 2 retry loop consumes them
-- hooks/notify.sh logs to a file     -> Phase 4 Telegram curl
+```
+agents/      one rules file per agent role (worker, reviewer, goalkeeper)
+schemas/     JSON schemas for stage artifacts — schema validation IS a gate
+gates/       one executable script per gate (exit 0 = pass, JSON verdict on stdout)
+pipeline/    the orchestrator (run.py), approval bot, supporting tools
+hooks/       Claude Code security + notification hooks
+evals/       regression benchmark tasks
+deploy/      LaunchAgent configs for auto-start and heartbeat monitoring
+bin/         operational scripts (bot control, autostart install, heartbeat)
+tasks/       one folder per task: task.md, state.json, run.jsonl, artifacts/, workdir/
+```
 
-## Phase 4 — Telegram notifications + approvals
-Setup (one time):
-1. Telegram: talk to @BotFather -> /newbot -> copy the token.
-2. Get your NUMERIC user id from @userinfobot.
-3. `mkdir -p ~/.warden && cp secrets.env.example ~/.warden/secrets.env` and fill both values.
+---
 
-Notifications: every stage transition and escalation calls hooks/notify.sh
-(Telegram when configured, /tmp/warden-notify.log otherwise).
+## Setup
 
-Approvals: the approve stage parks the task (`awaiting_approval`) and posts
-Approve / Reject / Show diff buttons. Run the listener on the same machine:
-    python3 pipeline/approval_bot.py
-Approvals bind to the diff hash at request time; if the workdir changes
-afterwards the approval is void and gets re-requested. Only callbacks from
-TELEGRAM_USER_ID are honored; everything else is ignored and logged.
+**Secrets** live entirely outside the repository, in `~/.warden/secrets.env` (gitignored), and are loaded only by the orchestrator — never into an agent's prompt.
 
-No Telegram configured? The pipeline writes APPROVAL_NEEDED with the manual
-fallback:  python3 pipeline/run.py approve <task-id>
+```bash
+mkdir -p ~/.warden && cp secrets.env.example ~/.warden/secrets.env
+# then fill in the values
+```
+
+**Telegram (for phone approvals):**
+1. Message [@BotFather](https://t.me/botfather) → `/newbot` → copy the token into `TELEGRAM_BOT_TOKEN`.
+2. Get your numeric user id from [@userinfobot](https://t.me/userinfobot) → put it in `TELEGRAM_USER_ID`.
+
+**Heartbeat monitoring (optional):** create a check at [healthchecks.io](https://healthchecks.io), and put its ping URL in `HEALTHCHECK_URL`.
+
+**Per-project gate commands** (so the gates run *your* tooling) are set via environment variables: `WARDEN_LINT_CMD`, `WARDEN_BUILD_CMD`, `WARDEN_TEST_CMD`. The test gate re-runs your real suite — it trusts the script, not the agent's report.
+
+**Always-on:** `bin/install-autostart` registers a LaunchAgent so the approval bot starts at login and restarts if it crashes; the heartbeat agent pings your monitor every few minutes while the bot is alive.
+
+---
+
+## Design notes
+
+A few decisions worth understanding:
+
+- **Crash-safe by construction.** All state lives in `tasks/<id>/state.json`. Kill the orchestrator mid-stage and re-run — it resumes from the last recorded stage. There's no in-memory state to lose.
+- **Rollback on failure.** When a stage exhausts its retries, the workdir is rolled back to the last good commit and the task halts for a human, rather than leaving a half-finished change.
+- **Reviewer can't run code, on purpose.** Forcing the Reviewer to judge by reading prevents it from rationalizing its own assumptions by executing them.
+- **The eval suite gates changes to WARDEN itself.** Modify a prompt or swap a model, and the benchmark tells you in numbers whether the change helped or hurt — the same "verify, don't trust" discipline, turned inward.
+
+---
+
+## What it's deliberately not
+
+In the spirit of being honest about scope:
+
+- **It's not a replacement for Copilot, Cursor, or Claude Code at your day job.** Those are more capable and have teams behind them. WARDEN is a personally-owned, readable, phone-controlled implementation of patterns serious teams have independently converged on — built small enough to understand every line.
+- **It doesn't run tasks in parallel yet.** One task at a time. Parallel worktrees and a merge queue are the obvious next step, deliberately deferred — sequential is debuggable; parallel is where subtle bugs hide.
+- **It never touches money or anything irreversible on its own.** It builds and tests; the dangerous calls stay human. (It's aimed at financial software eventually — which is exactly why credentials live entirely outside the agents' reach by design.)
+
+---
+
+*WARDEN: autonomous where it's safe, human where it counts.*
