@@ -812,8 +812,7 @@ def cmd_run(task_id: str, agent_mode: str) -> None:
                 save_state(task_id, state)
             # --- Two-model review debate (opt-in: WARDEN_GEMINI_REVIEW=1) ---
             # Never breaks the pipeline: on any error, falls back to Claude's verdict.
-            if (stage == "review" and agent_mode == "claude"
-                    and os.environ.get("WARDEN_GEMINI_REVIEW") == "1"):
+            if stage == "review" and agent_mode == "claude":
                 try:
                     from review_debate import reconcile
                     _rp = task_dir(task_id) / "artifacts" / "review.json"
