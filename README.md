@@ -10,6 +10,10 @@ WARDEN takes a task like *"add a function that calculates a moving average, with
 
 The whole pipeline is supervised from a phone. A task pings you over Telegram, you read the actual diff, and you approve or reject by tapping. You can also reject with feedback in plain words, and the system redoes the work to address it. Tasks run on your machine, and you steer them from anywhere.
 
+## What it feels like to use
+
+You set a task in the terminal at home, leave the computer running, and go about your day. WARDEN works on its own. As each stage passes, your phone gets a quiet update over Telegram. When the code is ready, you read the actual diff on your phone and approve it with a tap, or reject it and type in plain words what to change, and the system redoes the work. You are reviewing and directing real code from wherever you happen to be, instead of spending hours, days, or weeks writing or fixing it yourself.
+
 > **The core principle:** the repository is the only source of truth. The trust model isn't "the AI is honest." It's "the AI's claims don't matter, only the facts the scripts verify."
 
 ## Why this exists
