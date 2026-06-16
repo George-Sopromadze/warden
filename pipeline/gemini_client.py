@@ -46,6 +46,16 @@ def ask_gemini(prompt: str, model: str = _DEFAULT_MODEL, timeout: int = 60) -> s
         text = (resp.text or "").strip()
         if not text:
             raise RuntimeError("Gemini returned an empty response")
+        # Track spend (best-effort; never let tracking break a call).
+        try:
+            from gemini_budget import record_usage
+            um = resp.usage_metadata
+            in_tok = getattr(um, "prompt_token_count", 0) or 0
+            out_tok = ((getattr(um, "candidates_token_count", 0) or 0)
+                       + (getattr(um, "thoughts_token_count", 0) or 0))
+            record_usage(in_tok, out_tok)
+        except Exception:
+            pass
         return text
     except Exception as e:
         raise RuntimeError(f"Gemini call failed: {e}") from e
