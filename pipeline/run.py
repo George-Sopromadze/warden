@@ -810,6 +810,38 @@ def cmd_run(task_id: str, agent_mode: str) -> None:
                 u = usage.get("usage", {})
                 budget["tokens_spent"] += u.get("input_tokens", 0) + u.get("output_tokens", 0)
                 save_state(task_id, state)
+            # --- Two-model review debate (opt-in: WARDEN_GEMINI_REVIEW=1) ---
+            # Never breaks the pipeline: on any error, falls back to Claude's verdict.
+            if (stage == "review" and agent_mode == "claude"
+                    and os.environ.get("WARDEN_GEMINI_REVIEW") == "1"):
+                try:
+                    from review_debate import reconcile
+                    _rp = task_dir(task_id) / "artifacts" / "review.json"
+                    _claude_v = json.loads(_rp.read_text())
+                    _task = (task_dir(task_id) / "task.md").read_text()
+                    # Read the actual source files the worker produced (the diff is
+                    # empty here because WARDEN commits each stage). Show Gemini the real code.
+                    _wd = task_dir(task_id) / "workdir"
+                    _parts = []
+                    for _f in sorted(_wd.rglob("*.py")):
+                        if "__pycache__" in str(_f) or ".pytest_cache" in str(_f):
+                            continue
+                        try:
+                            _parts.append(f"### {_f.relative_to(_wd)}\n{_f.read_text()}")
+                        except Exception:
+                            pass
+                    _diff = "\n\n".join(_parts) if _parts else _wgit(task_id, "diff", "HEAD~1", "HEAD").stdout
+                    _deb = reconcile(_task, _task, _diff, _claude_v)
+                    atomic_write_json(_rp, _deb["final"])
+                    log_event(task_id, "gemini_debate", {
+                        "claude": _deb["claude_review"],
+                        "gemini": _deb["gemini_review"],
+                        "final": _deb["final"],
+                    })
+                    print("[warden] gemini review debate applied")
+                except Exception as _e:
+                    log_event(task_id, "gemini_debate_skipped", {"reason": str(_e)})
+                    print(f"[warden] gemini debate skipped (fell back to Claude): {_e}")
             validate_artifact(task_id, stage)
             run_gate(task_id, stage)
             if stage == "test":
