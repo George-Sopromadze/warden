@@ -1,23 +1,36 @@
 #!/usr/bin/env bash
-# Manage the WARDEN approval bot with one command.
+# Manage the WARDEN approval bot via launchd.
 #   bin/bot start | stop | status | restart | logs
-# No `set -e`: pgrep/pkill return non-zero on "no match", which is normal here.
-
+# The bot runs as a launchd service (com.warden.bot) with KeepAlive, so it
+# auto-restarts on a real crash. To genuinely stop it we must tell launchd to
+# let go (bootout), otherwise KeepAlive immediately resurrects it.
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT" || exit 1
 LOGFILE="$ROOT/tasks/.bot.log"
 mkdir -p "$ROOT/tasks"
 
+LABEL="com.warden.bot"
+PLIST="$HOME/Library/LaunchAgents/${LABEL}.plist"
+DOMAIN="gui/$(id -u)"
+
 running_pid() {
   pgrep -f "pipeline/approval_bot.py" 2>/dev/null | head -1
+}
+is_loaded() {
+  launchctl list 2>/dev/null | grep -q "$LABEL"
 }
 
 cmd="${1:-status}"
 case "$cmd" in
   start)
-    pid="$(running_pid)"
-    if [ -n "$pid" ]; then echo "bot already running (pid $pid)"; exit 0; fi
-    nohup python3 pipeline/approval_bot.py > "$LOGFILE" 2>&1 &
+    if is_loaded; then
+      pid="$(running_pid)"
+      echo "bot already running (pid ${pid:-?})"; exit 0
+    fi
+    if [ ! -f "$PLIST" ]; then
+      echo "launchd plist not found at $PLIST - run bin/install-autostart first"; exit 1
+    fi
+    launchctl bootstrap "$DOMAIN" "$PLIST" 2>/dev/null || launchctl load "$PLIST" 2>/dev/null
     sleep 2
     pid="$(running_pid)"
     if [ -n "$pid" ]; then
@@ -27,15 +40,23 @@ case "$cmd" in
     fi
     ;;
   stop)
-    pid="$(running_pid)"
-    if [ -z "$pid" ]; then echo "bot not running"; else
-      pkill -f "pipeline/approval_bot.py" 2>/dev/null; sleep 1; echo "bot stopped"
+    if ! is_loaded && [ -z "$(running_pid)" ]; then
+      echo "bot not running"; exit 0
     fi
+    launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null || launchctl unload "$PLIST" 2>/dev/null
+    sleep 1
+    pkill -f "pipeline/approval_bot.py" 2>/dev/null
+    sleep 1
+    if [ -z "$(running_pid)" ]; then echo "bot stopped"; else echo "bot still running - check 'launchctl list | grep warden'"; fi
     ;;
-  restart) "$0" stop; "$0" start ;;
+  restart) "$0" stop; sleep 1; "$0" start ;;
   status)
     pid="$(running_pid)"
-    [ -n "$pid" ] && echo "bot running (pid $pid)" || echo "bot not running"
+    if [ -n "$pid" ]; then
+      echo "bot running (pid $pid)"
+    else
+      echo "bot not running"
+    fi
     ;;
   logs)
     [ -f "$LOGFILE" ] && tail -f "$LOGFILE" || echo "no log yet (start the bot first)"
