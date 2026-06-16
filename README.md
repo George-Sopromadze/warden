@@ -2,6 +2,8 @@
 
 *Workflow with Agents, Rules, Determinism, Escalation, Notifications*
 
+**3 active agent roles · 7-stage pipeline · 8 deterministic gates · regression eval suite · security-hardened**
+
 **An autonomous AI software pipeline that turns a plain-English task into reviewed, tested, approved code, and never merges anything a human hasn't signed off on, from their phone.**
 
 WARDEN takes a task like *"add a function that calculates a moving average, with tests"* and moves it down a fixed assembly line: `spec → plan → implement → test → review → approve → merge`. At every stage, the decision to advance is made by a script that checks the real repository, not by a model's opinion of its own work. A model can claim its tests passed; WARDEN re-runs them and believes only the result.
