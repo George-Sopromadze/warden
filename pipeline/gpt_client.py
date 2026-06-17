@@ -47,7 +47,7 @@ def ask_gpt(prompt: str, model: str = _DEFAULT_MODEL) -> str:
             from gemini_budget import record_usage
             u = resp.usage
             record_usage(getattr(u, "prompt_tokens", 0) or 0,
-                         getattr(u, "completion_tokens", 0) or 0)
+                         getattr(u, "completion_tokens", 0) or 0, model="gpt")
         except Exception:
             pass
         return text

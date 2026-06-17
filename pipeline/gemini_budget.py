@@ -50,9 +50,20 @@ def cost_gbp(in_tokens: int, out_tokens: int) -> float:
     return usd * _USD_TO_GBP
 
 
-def record_usage(in_tokens: int, out_tokens: int):
+# GPT (OpenAI) pricing, USD per 1M tokens.
+_GPT_USD_IN_PER_M = 2.5
+_GPT_USD_OUT_PER_M = 15.0
+
+
+def cost_gbp_gpt(in_tokens: int, out_tokens: int) -> float:
+    usd = (in_tokens / 1_000_000) * _GPT_USD_IN_PER_M + (out_tokens / 1_000_000) * _GPT_USD_OUT_PER_M
+    return usd * _USD_TO_GBP
+
+
+def record_usage(in_tokens: int, out_tokens: int, model: str = "gemini"):
     state = _load()
-    state["spent_gbp"] = round(state["spent_gbp"] + cost_gbp(in_tokens, out_tokens), 6)
+    c = cost_gbp_gpt(in_tokens, out_tokens) if model == "gpt" else cost_gbp(in_tokens, out_tokens)
+    state["spent_gbp"] = round(state["spent_gbp"] + c, 6)
     remaining = state["starting_balance_gbp"] - state["spent_gbp"]
     threshold = float(_cfg("GEMINI_ALERT_THRESHOLD_GBP", "5"))
     if remaining <= threshold and not state.get("alerted"):
