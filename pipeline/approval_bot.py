@@ -175,7 +175,7 @@ def handle_message(msg: dict) -> None:
     inject_feedback(task_dir, note)
     rerun_from_implement(task_id, task_dir)
     tg("sendMessage", chat_id=ALLOWED_ID, text=(
-        f"🔁 {task_id}: feedback received. Redoing from the implement "
+        f"{task_id}: feedback received. Redoing from the implement "
         f"stage — I'll send a new approval request when it's ready."))
     log(f"{task_id}: feedback injected, re-running from implement")
 
@@ -202,7 +202,7 @@ def handle_callback(cb: dict) -> None:
         current = diff_hash(task_dir)
         if pending.get("diff_hash") and pending["diff_hash"] != current:
             tg("sendMessage", chat_id=ALLOWED_ID, text=(
-                f"⚠️ {task_id}: diff changed since approval was requested — "
+                f"{task_id}: diff changed since approval was requested — "
                 f"approval void. Re-run the pipeline to request again."))
             log(f"{task_id}: approval void, hash drift")
             return
@@ -210,7 +210,7 @@ def handle_callback(cb: dict) -> None:
         set_status(task_dir, "pending")
         resume_pipeline(task_id)
         tg("sendMessage", chat_id=ALLOWED_ID,
-           text=f"✅ {task_id} approved (diff {current[:8]}). Pipeline resuming.")
+           text=f"{task_id} approved (diff {current[:8]}). Pipeline resuming.")
         log(f"{task_id}: approved")
 
     elif action == "reject":
@@ -221,18 +221,18 @@ def handle_callback(cb: dict) -> None:
             (task_dir / "NEEDS_HUMAN").write_text(
                 f"rejected via Telegram by {from_id}\n")
             tg("sendMessage", chat_id=ALLOWED_ID,
-               text=f"⛔ {task_id} rejected and escalated (no feedback given).")
+               text=f"{task_id} rejected and escalated (no feedback given).")
             log(f"{task_id}: rejected -> escalated")
             return
         set_pending_feedback(task_id)
         tg("sendMessage", chat_id=ALLOWED_ID, text=(
-            f"✋ {task_id} rejected. Reply with what to change in plain words "
+            f"{task_id} rejected. Reply with what to change in plain words "
             f"(the worker will redo the code). Or tap Reject again to stop the task."))
         log(f"{task_id}: rejected, awaiting feedback")
 
     elif action == "diff":
         tg("sendMessage", chat_id=ALLOWED_ID,
-           text=f"📄 {task_id} diff:\n\n{workdir_diff(task_dir)}")
+           text=f"{task_id} diff:\n\n{workdir_diff(task_dir)}")
         log(f"{task_id}: diff sent")
 
 

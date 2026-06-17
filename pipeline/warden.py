@@ -115,10 +115,10 @@ def cmd_report(task_id: str) -> None:
             if tok or cost:
                 print(f"  {DIM(t)}     {DIM('agent ' + ev.get('role', ev.get('agent','')) + f': {tok} tok, ${cost:.4f}')}")
         elif e == "gate_result":
-            mark = GREEN("✓") if ev.get("pass") else RED("✗")
+            mark = GREEN("[OK]") if ev.get("pass") else RED("[X]")
             print(f"  {DIM(t)}     {mark} {ev['gate']}: {ev.get('reason','')}")
         elif e == "goalkeeper":
-            mark = GREEN("✓ on track") if ev.get("on_track") else RED("✗ off track")
+            mark = GREEN("on track") if ev.get("on_track") else RED("off track")
             extra = "" if ev.get("on_track") else RED(" — " + ", ".join(ev.get("violated_criteria", [])))
             print(f"  {DIM(t)}     {mark} goalkeeper{extra}")
         elif e == "transition":
@@ -126,13 +126,13 @@ def cmd_report(task_id: str) -> None:
         elif e == "stage_failed":
             print(f"  {DIM(t)}     {RED('FAILED')} {ev['stage']}: {ev.get('reason','')}")
         elif e == "escalation":
-            print(f"  {DIM(t)}  {RED('🛑 ESCALATED')}: {ev.get('reason','')}")
+            print(f"  {DIM(t)}  {RED('ESCALATED')}: {ev.get('reason','')}")
             if ev.get("rolled_back_to"):
                 print(f"  {DIM(t)}     {DIM('rolled back to ' + ev['rolled_back_to'][:10])}")
         elif e == "approval_requested":
             print(f"  {DIM(t)}  {YEL('⏸ approval requested')} (diff {ev.get('diff_hash','')[:8]})")
         elif e == "approval":
-            print(f"  {DIM(t)}  {GREEN('✓ approved')} by {ev.get('by','?')}")
+            print(f"  {DIM(t)}  {GREEN('approved')} by {ev.get('by','?')}")
 
     # Costs
     print()
@@ -212,10 +212,10 @@ def cmd_replay(task_id: str, stage: str) -> None:
         print(BOLD("── verdicts ──"))
         for e in gate_lines:
             if e["event"] == "gate_result":
-                mark = GREEN("✓") if e.get("pass") else RED("✗")
+                mark = GREEN("[OK]") if e.get("pass") else RED("[X]")
                 print(f"  {mark} {e['gate']}: {e.get('reason','')}")
             elif e["event"] == "goalkeeper":
-                mark = GREEN("✓") if e.get("on_track") else RED("✗")
+                mark = GREEN("[OK]") if e.get("on_track") else RED("[X]")
                 print(f"  {mark} goalkeeper: {e.get('reasoning','')}")
             elif e["event"] == "stage_failed":
                 print(f"  {RED('FAILED')}: {e.get('reason','')}")

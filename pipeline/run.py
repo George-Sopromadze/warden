@@ -594,9 +594,9 @@ def _send_approval_buttons(task_id: str, text: str) -> bool:
     if not token or not user:
         return False
     keyboard = json.dumps({"inline_keyboard": [[
-        {"text": "✅ Approve", "callback_data": f"approve:{task_id}"},
-        {"text": "⛔ Reject", "callback_data": f"reject:{task_id}"},
-        {"text": "📄 Show diff", "callback_data": f"diff:{task_id}"},
+        {"text": "Approve", "callback_data": f"approve:{task_id}"},
+        {"text": "Reject", "callback_data": f"reject:{task_id}"},
+        {"text": "Show diff", "callback_data": f"diff:{task_id}"},
     ]]})
     proc = subprocess.run(
         ["curl", "-sS", "-m", "10",
@@ -727,7 +727,7 @@ def escalate(task_id: str, reason: str) -> None:
     log_event(task_id, "escalation", context)
     (task_dir(task_id) / "NEEDS_HUMAN").write_text(
         f"{reason}\nFull context: escalation.json | event trail: run.jsonl\n")
-    notify(task_id, f"🛑 WARDEN escalation\ntask: {task_id}\nstage: {state['stage']}\n"
+    notify(task_id, f"WARDEN escalation\ntask: {task_id}\nstage: {state['stage']}\n"
                     f"reason: {reason}\ntokens: {state['budget']['tokens_spent']}")
     print(f"[warden] ESCALATED {task_id}: {reason}"
           + (" (workdir rolled back)" if rolled_back else ""), file=sys.stderr)
@@ -884,7 +884,7 @@ def cmd_run(task_id: str, agent_mode: str) -> None:
         save_state(task_id, state)   # atomic transition — the crash-safe moment
         log_event(task_id, "transition", {"from": stage, "to": nxt,
                                           "checkpoint": good})
-        notify(task_id, f"WARDEN ✓ {task_id}: {stage} passed -> {nxt} "
+        notify(task_id, f"WARDEN: {task_id}: {stage} passed -> {nxt} "
                         f"(tokens: {budget['tokens_spent']})")
 
     print(f"[warden] {task_id} complete")

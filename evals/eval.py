@@ -192,14 +192,14 @@ def cmd_run(agent_mode: str, only=None, save_baseline=False):
             b = base["results"].get(r["id"])
             if b and b["passed"] and not r["passed"]:
                 regressed = True
-                print(RED(f"  ✗ REGRESSION: {r['id']} passed in baseline, fails now"))
+                print(RED(f"  REGRESSION: {r['id']} passed in baseline, fails now"))
         bt = base.get("total_tokens", 0)
         if bt and total_tokens > bt * (1 + COST_REGRESSION_FRACTION):
             regressed = True
-            print(RED(f"  ✗ COST REGRESSION: {total_tokens:,} tok > "
+            print(RED(f"  COST REGRESSION: {total_tokens:,} tok > "
                       f"{int(bt*(1+COST_REGRESSION_FRACTION)):,} (+{COST_REGRESSION_FRACTION:.0%} of baseline {bt:,})"))
         if not regressed:
-            print(GREEN("  ✓ no regressions"))
+            print(GREEN("  no regressions"))
         print()
     elif not BASELINE.is_file():
         print(DIM("  (no baseline saved yet — run `eval baseline` to set one)\n"))
