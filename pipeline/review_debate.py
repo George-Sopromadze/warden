@@ -1,5 +1,5 @@
 """
-Two-model review debate with a neutral judge, for WARDEN's review stage.
+Multi-model review debate with a neutral judge, for WARDEN's review stage.
 
 Flow:
   1. Claude reviews the code   -> verdict A   (done via WARDEN's existing run_agent)

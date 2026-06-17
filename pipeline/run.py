@@ -796,8 +796,8 @@ def cmd_run(task_id: str, agent_mode: str) -> None:
                 u = usage.get("usage", {})
                 budget["tokens_spent"] += u.get("input_tokens", 0) + u.get("output_tokens", 0)
                 save_state(task_id, state)
-            # --- Two-model review debate (opt-in: WARDEN_GEMINI_REVIEW=1) ---
-            # Never breaks the pipeline: on any error, falls back to Claude's verdict.
+            # Multi-model review: Claude and Gemini review independently, GPT judges.
+            # Always on. Never breaks the pipeline: on any error, falls back to Claude's verdict.
             if stage == "review" and agent_mode == "claude":
                 try:
                     from review_debate import reconcile
@@ -805,7 +805,7 @@ def cmd_run(task_id: str, agent_mode: str) -> None:
                     _claude_v = json.loads(_rp.read_text())
                     _task = (task_dir(task_id) / "task.md").read_text()
                     # Read the actual source files the worker produced (the diff is
-                    # empty here because WARDEN commits each stage). Show Gemini the real code.
+                    # empty here because WARDEN commits each stage). Show the reviewers the real code.
                     _wd = task_dir(task_id) / "workdir"
                     _parts = []
                     for _f in sorted(_wd.rglob("*.py")):

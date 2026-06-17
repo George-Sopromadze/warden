@@ -70,7 +70,7 @@ def record_usage(in_tokens: int, out_tokens: int, model: str = "gemini"):
         _notify(
             f"WARDEN: estimated Gemini credit low — about £{remaining:.2f} left "
             f"(spent ~£{state['spent_gbp']:.2f} of £{state['starting_balance_gbp']:.0f}). "
-            f"Top up at AI Studio to keep two-model review running."
+            f"Top up at AI Studio to keep multi-model review running."
         )
         state["alerted"] = True
     _save(state)
