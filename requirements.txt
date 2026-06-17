@@ -1,2 +1,3 @@
 jsonschema>=4.21
 google-genai>=2.8.0
+openai>=2.42.0

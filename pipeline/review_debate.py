@@ -12,6 +12,7 @@ All verdicts use the same shape as review.schema.json:
 """
 import json
 from gemini_client import ask_gemini
+from gpt_client import ask_gpt
 
 _CRITERIA = (
     "You judge code by READING only (no running it). Executable criteria such as "
@@ -71,7 +72,7 @@ def judge(task: str, criteria: str, code: str, verdict_a: dict, verdict_b: dict)
         f"than dismiss it. Base your verdict only on concerns that hold up.\n\n"
         f"{_JSON_SHAPE}"
     )
-    return _parse_verdict(ask_gemini(prompt))
+    return _parse_verdict(ask_gpt(prompt))
 
 
 def reconcile(task: str, criteria: str, code: str, claude_verdict: dict) -> dict:
