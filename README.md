@@ -2,7 +2,7 @@
 
 *Workflow with Agents, Rules, Determinism, Escalation, Notifications*
 
-**Double AI model review (Claude+Gemini)· 3 active agent roles · 7-stage pipeline · 8 deterministic gates · regression eval suite · security-hardened**
+**Double AI model review (Claude+Gemini) + GPT as a neutral judge· 3 active agent roles · 7-stage pipeline · 8 deterministic gates · regression eval suite · security-hardened**
 
 **An autonomous AI software pipeline that turns a plain-English task into reviewed, tested, approved code, and never merges anything a human hasn't signed off on, from their phone.**
 
