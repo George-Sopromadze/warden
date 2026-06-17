@@ -77,9 +77,7 @@ def _usage_cost(ev: dict) -> float:
     return float(u.get("total_cost_usd", 0) or 0)
 
 
-# ----------------------------------------------------------------------------
 # report
-# ----------------------------------------------------------------------------
 
 def cmd_report(task_id: str) -> None:
     events = load_events(task_id)
@@ -162,9 +160,7 @@ def cmd_report(task_id: str) -> None:
     print()
 
 
-# ----------------------------------------------------------------------------
 # replay — reconstruct exactly what a stage saw
-# ----------------------------------------------------------------------------
 
 def cmd_replay(task_id: str, stage: str) -> None:
     if stage not in STAGES:
@@ -222,9 +218,7 @@ def cmd_replay(task_id: str, stage: str) -> None:
     print()
 
 
-# ----------------------------------------------------------------------------
 # costs / list
-# ----------------------------------------------------------------------------
 
 def cmd_costs(task_id: str) -> None:
     events = load_events(task_id)

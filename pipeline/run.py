@@ -59,9 +59,7 @@ STAGE_CONFIG = {
 DEFAULT_MAX_ATTEMPTS = 3  # TODO(phase2): consumed by retry loop
 
 
-# ----------------------------------------------------------------------------
 # State: atomic, append-only logging, resumable
-# ----------------------------------------------------------------------------
 
 def task_dir(task_id: str) -> Path:
     return TASKS_DIR / task_id
@@ -109,9 +107,7 @@ def log_event(task_id: str, event_type: str, payload: dict) -> None:
         os.fsync(f.fileno())
 
 
-# ----------------------------------------------------------------------------
 # Agents
-# ----------------------------------------------------------------------------
 
 def run_agent(task_id: str, stage: str, role: str, mode: str) -> dict:
     """Produce the stage artifact via Claude Code headless or a stub.
@@ -322,9 +318,7 @@ def _stub_agent(task_id: str, stage: str, artifact_path: Path) -> None:
     atomic_write_json(artifact_path, stubs[stage])
 
 
-# ----------------------------------------------------------------------------
 # Validation + gates
-# ----------------------------------------------------------------------------
 
 class StageFailure(Exception):
     pass
@@ -440,9 +434,7 @@ def commit_artifact(task_id: str, stage: str) -> None:
     )
 
 
-# ----------------------------------------------------------------------------
 # Goal Keeper (Phase 3): judges against the written contract, never fixes
-# ----------------------------------------------------------------------------
 
 GOALKEEPER_STAGES = {"plan", "implement", "test", "review"}  # agent stages after spec
 
@@ -540,9 +532,7 @@ def _stub_goalkeeper(task_id: str, stage: str, out_path: Path) -> None:
 
 
 
-# ----------------------------------------------------------------------------
 # Notifications + human approval (Phase 4)
-# ----------------------------------------------------------------------------
 
 REQUIRES_HUMAN = {"approve"}  # the irreversible boundary before merge
 
@@ -703,9 +693,7 @@ def rollback_workdir(task_id: str, commit: str | None) -> bool:
     return True
 
 
-# ----------------------------------------------------------------------------
 # Escalation (Phase 2): halt, roll back, record full failure context
-# ----------------------------------------------------------------------------
 
 def escalate(task_id: str, reason: str) -> None:
     state = load_state(task_id)
@@ -733,9 +721,7 @@ def escalate(task_id: str, reason: str) -> None:
           + (" (workdir rolled back)" if rolled_back else ""), file=sys.stderr)
 
 
-# ----------------------------------------------------------------------------
 # Main loop
-# ----------------------------------------------------------------------------
 
 def cmd_new(task_id: str, description: str) -> None:
     td = task_dir(task_id)
