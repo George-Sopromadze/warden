@@ -27,7 +27,7 @@ spec → plan → implement → test → review → approve → merge → done
 | plan | Worker (LLM) | `plan.json` — task list with files | plan well-formed, files declared |
 | implement | Worker (LLM) | `implement.json` + edited files | diff touches only declared files |
 | test | Worker (LLM) | `test-report.json` | suite ran; **acceptance criteria re-run by script** |
-| review | Reviewer (LLM) | `review.json` | no blocking findings |
+| review | Reviewer (Claude + Gemini, GPT judge) | `review.json` | no blocking findings |
 | approve | **Human** | `approval.json` | approval exists and is bound to the current diff hash |
 | merge | orchestrator | `merge.json` | merge recorded |
 
@@ -148,10 +148,12 @@ can do the reasoning-heavy work while cheap models handle judging:
 - `WARDEN_REVIEWER_MODEL` — review
 - `WARDEN_GK_MODEL` — Goal Keeper
 
-Optional **triple blind review** (`WARDEN_TRIPLE_REVIEW=1`,
-`WARDEN_REVIEW_PANEL="m1,m2,m3"`) runs three reviewers independently and decides
-by deterministic majority vote (2+ blocking = fail). Off by default; intended for
-high-stakes tasks.
+**Multi-model review.** The review stage always runs more than one model:
+Claude and Gemini each review the code independently, then GPT acts as a neutral
+judge that wrote neither review and decides the final verdict by checking each
+concern against the actual code. Because the judge shares no kinship with either
+reviewer, no model grades its own work. If a provider is unavailable, the stage
+falls back to a single-model review so the pipeline never breaks.
 
 ---
 
