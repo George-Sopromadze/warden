@@ -973,6 +973,114 @@ def cmd_status(task_id: str) -> None:
     print(json.dumps(load_state(task_id), indent=2))
 
 
+CHAINS_DIR = ROOT / "chains"
+
+
+def _chain_path(name):
+    return CHAINS_DIR / f"{name}.json"
+
+
+def _chain_state_path(name):
+    return CHAINS_DIR / f"{name}.state.json"
+
+
+def load_chain(name):
+    p = _chain_path(name)
+    if not p.exists():
+        sys.exit(f"no chain definition: {p}")
+    return json.loads(p.read_text())
+
+
+def load_chain_state(name):
+    p = _chain_state_path(name)
+    if p.exists():
+        return json.loads(p.read_text())
+    return {"chain": name, "step": 0, "status": "pending"}
+
+
+def save_chain_state(name, st):
+    atomic_write_json(_chain_state_path(name), st)
+
+
+def _seed_workdir(task_id, seeds):
+    import os, shutil
+    dest = os.environ.get("WARDEN_DELIVER_TO")
+    if not dest:
+        print("[warden] chain: WARDEN_DELIVER_TO unset; cannot seed deps", file=sys.stderr)
+        return
+    base = Path(dest).expanduser()
+    wd = task_dir(task_id) / "workdir"
+    for rel in seeds:
+        s = base / rel
+        if not s.is_file():
+            print(f"[warden] chain: seed source missing: {s}", file=sys.stderr)
+            continue
+        t = wd / rel
+        t.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(s, t)
+
+
+def cmd_chain_start(name, agent_mode):
+    chain = load_chain(name)
+    steps = chain["steps"]
+    st = load_chain_state(name)
+
+    while st["step"] < len(steps):
+        step = steps[st["step"]]
+        task_id = step["task_id"]
+        td = task_dir(task_id)
+
+        if not (td / "state.json").exists():
+            cmd_new(task_id, f"chain {name} step {st['step']}")
+            (td / "task.md").write_text(step["spec"])
+            _seed_workdir(task_id, step.get("seed", []))
+            print(f"[warden] chain {name}: created step {st['step']} -> {task_id}")
+
+        state = load_state(task_id)
+
+        if state["status"] == "awaiting_approval":
+            print(f"[warden] chain {name}: {task_id} awaiting approval. Approve it, "
+                  f"then re-run: warden chain {name} --agent-mode {agent_mode}")
+            st["status"] = "awaiting_approval"
+            save_chain_state(name, st)
+            return
+
+        if state["stage"] == "done":
+            print(f"[warden] chain {name}: step {st['step']} ({task_id}) done; advancing.")
+            st["step"] += 1
+            st["status"] = "pending"
+            save_chain_state(name, st)
+            continue
+
+        st["status"] = "running"
+        save_chain_state(name, st)
+        cmd_run(task_id, agent_mode)
+        state = load_state(task_id)
+        if state["status"] == "escalated":
+            print(f"[warden] chain {name}: step {st['step']} ({task_id}) ESCALATED; "
+                  f"chain paused. Resolve, then re-run the chain.", file=sys.stderr)
+            st["status"] = "escalated"
+            save_chain_state(name, st)
+            return
+
+    print(f"[warden] chain {name}: all {len(steps)} steps complete.")
+    st["status"] = "done"
+    save_chain_state(name, st)
+
+
+def cmd_chain_status(name):
+    chain = load_chain(name)
+    st = load_chain_state(name)
+    print(f"chain {name}: step {st['step']}/{len(chain['steps'])} ({st['status']})")
+    for i, step in enumerate(chain["steps"]):
+        mark = "->" if i == st["step"] else "  "
+        tid = step["task_id"]
+        tstate = "-"
+        if (task_dir(tid) / "state.json").exists():
+            tstate = load_state(tid).get("status", "?")
+        print(f" {mark} {i}. {tid} [{tstate}]")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(prog="warden")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -991,7 +1099,11 @@ def main() -> None:
 
     p_ap = sub.add_parser("approve", help="manually approve an awaiting task (no-Telegram fallback)")
     p_ap.add_argument("task_id")
-
+    p_ch = sub.add_parser("chain", help="run/resume a chain of dependent tasks")
+    p_ch.add_argument("name")
+    p_ch.add_argument("--agent-mode", choices=["stub", "claude"], default="stub")
+    p_chs = sub.add_parser("chain-status", help="show a chain progress")
+    p_chs.add_argument("name")
     args = ap.parse_args()
     if args.cmd == "new":
         cmd_new(args.task_id, args.description)
@@ -1001,6 +1113,10 @@ def main() -> None:
         cmd_status(args.task_id)
     elif args.cmd == "approve":
         cmd_approve(args.task_id)
+    elif args.cmd == "chain":
+        cmd_chain_start(args.name, args.agent_mode)
+    elif args.cmd == "chain-status":
+        cmd_chain_status(args.name)
 
 
 if __name__ == "__main__":
