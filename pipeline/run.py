@@ -893,10 +893,80 @@ def cmd_run(task_id: str, agent_mode: str) -> None:
         save_state(task_id, state)   # atomic transition — the crash-safe moment
         log_event(task_id, "transition", {"from": stage, "to": nxt,
                                           "checkpoint": good})
+        if stage == "merge":
+            deliver_to_target(task_id)
         notify(task_id, f"WARDEN: {task_id}: {stage} passed -> {nxt} "
                         f"(tokens: {budget['tokens_spent']})")
 
     print(f"[warden] {task_id} complete")
+
+
+def deliver_to_target(task_id: str) -> None:
+    """Deliver an approved task's output to a target repo and commit on green.
+
+    Opt-in via the WARDEN_DELIVER_TO env var (an existing git repo path). If
+    unset, delivery is skipped. Copies the task workdir's src/ and tests/ into
+    the target, runs pytest there, and commits ONLY if the tests pass — so a
+    delivered module is always verified in its destination before it lands in
+    history. On test failure the files are left in place (uncommitted) and the
+    failure is logged, so nothing broken is silently committed.
+    """
+    import os, shutil
+    dest = os.environ.get("WARDEN_DELIVER_TO")
+    if not dest:
+        return
+    dest_path = Path(dest).expanduser()
+    if not (dest_path / ".git").exists():
+        print(f"[warden] deliver: {dest_path} is not a git repo; skipping",
+              file=sys.stderr)
+        log_event(task_id, "deliver_skipped", {"reason": "target not a git repo",
+                                               "dest": str(dest_path)})
+        return
+
+    wd = task_dir(task_id) / "workdir"
+    copied = []
+    for sub in ("src", "tests"):
+        s = wd / sub
+        if not s.is_dir():
+            continue
+        for f in s.rglob("*"):
+            if not f.is_file():
+                continue
+            if "__pycache__" in f.parts or ".pytest_cache" in f.parts:
+                continue
+            rel = f.relative_to(wd)
+            target = dest_path / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(f, target)
+            copied.append(str(rel))
+
+    if not copied:
+        print(f"[warden] deliver: nothing to copy from {wd}", file=sys.stderr)
+        log_event(task_id, "deliver_skipped", {"reason": "no src/ or tests/ files"})
+        return
+
+    # Verify in the destination before committing.
+    proc = subprocess.run(["python3", "-m", "pytest", "tests/", "-q"],
+                          cwd=dest_path, capture_output=True, text=True, timeout=300)
+    if proc.returncode != 0:
+        print(f"[warden] deliver: pytest FAILED in {dest_path}; files copied but "
+              f"NOT committed. Inspect and commit manually.", file=sys.stderr)
+        print(proc.stdout[-1500:], file=sys.stderr)
+        log_event(task_id, "deliver_test_failed",
+                  {"dest": str(dest_path), "files": copied,
+                   "pytest_tail": proc.stdout[-1500:]})
+        return
+
+    subprocess.run(["git", "add", *copied], cwd=dest_path, check=True)
+    msg = f"WARDEN delivery: {task_id} (tests green, 3-model reviewed)"
+    commit = subprocess.run(["git", "commit", "-m", msg], cwd=dest_path,
+                            capture_output=True, text=True)
+    if commit.returncode == 0:
+        print(f"[warden] deliver: {len(copied)} files -> {dest_path}, tests green, committed.")
+        log_event(task_id, "delivered", {"dest": str(dest_path), "files": copied})
+    else:
+        print(f"[warden] deliver: nothing to commit (no changes) in {dest_path}.")
+        log_event(task_id, "deliver_nochange", {"dest": str(dest_path)})
 
 
 def cmd_status(task_id: str) -> None:
