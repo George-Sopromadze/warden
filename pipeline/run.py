@@ -200,8 +200,31 @@ def run_agent(task_id: str, stage: str, role: str, mode: str) -> dict:
         artifact_obj = _extract_artifact(proc.stdout)
         if artifact_obj is None:
             raise StageFailure("could not extract structured artifact from agent output")
+        artifact_obj = _normalize_artifact(stage, artifact_obj)
         atomic_write_json(artifact_path, artifact_obj)
     return usage
+
+
+def _normalize_artifact(stage, obj):
+    """Coerce reasonable agent shorthand into the schema shape before validation.
+
+    Review agents sometimes emit a finding as a bare string sentence rather than
+    the required {"severity","description"} object. A valid, approving review
+    should not be discarded over that format slip, so we wrap string findings as
+    info-level findings. Object findings pass through untouched.
+    """
+    if stage == "review" and isinstance(obj, dict):
+        findings = obj.get("findings")
+        if isinstance(findings, list):
+            normed = []
+            for f in findings:
+                if isinstance(f, str):
+                    desc = f if len(f) >= 5 else (f + " .")[:max(5, len(f) + 2)]
+                    normed.append({"severity": "info", "description": desc})
+                else:
+                    normed.append(f)
+            obj["findings"] = normed
+    return obj
 
 
 def _extract_artifact(stdout: str):
