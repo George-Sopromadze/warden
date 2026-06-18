@@ -33,12 +33,12 @@ STAGE_ARTIFACT = {
 # ANSI colors (degrade gracefully if piped)
 def _c(code, s):
     return f"\033[{code}m{s}\033[0m" if sys.stdout.isatty() else s
-GREEN = lambda s: _c("32", s)
-RED = lambda s: _c("31", s)
-YEL = lambda s: _c("33", s)
-DIM = lambda s: _c("2", s)
-BOLD = lambda s: _c("1", s)
-CYAN = lambda s: _c("36", s)
+def GREEN(s): return _c("32", s)
+def RED(s): return _c("31", s)
+def YEL(s): return _c("33", s)
+def DIM(s): return _c("2", s)
+def BOLD(s): return _c("1", s)
+def CYAN(s): return _c("36", s)
 
 
 def load_events(task_id: str) -> list:
@@ -239,7 +239,8 @@ def cmd_costs(task_id: str) -> None:
     for s in STAGES:
         if s in per_stage:
             v = per_stage[s]
-            tt += v["tok"]; tc += v["cost"]
+            tt += v["tok"]
+            tc += v["cost"]
             print(f"  {s:<12}{v['calls']:>6}{v['tok']:>12,}{('$%.4f' % v['cost']):>12}")
     print(DIM(f"  {'─'*42}"))
     print(BOLD(f"  {'total':<12}{'':>6}{tt:>12,}{('$%.4f' % tc):>12}\n"))
@@ -247,7 +248,8 @@ def cmd_costs(task_id: str) -> None:
 
 def cmd_list() -> None:
     if not TASKS.exists():
-        print("no tasks yet"); return
+        print("no tasks yet")
+        return
     rows = []
     for d in sorted(TASKS.iterdir()):
         sp = d / "state.json"
@@ -256,7 +258,8 @@ def cmd_list() -> None:
             rows.append((d.name, s.get("stage", "?"), s.get("status", "?"),
                          s.get("budget", {}).get("tokens_spent", 0)))
     if not rows:
-        print("no tasks yet"); return
+        print("no tasks yet")
+        return
     print(BOLD(f"\n  {'task':<20}{'stage':<12}{'status':<18}{'tokens':>10}"))
     for name, stage, status, tok in rows:
         st = {"done": GREEN, "escalated": RED,
@@ -271,7 +274,8 @@ def main() -> None:
     r = sub.add_parser("report", help="timeline + costs + verdicts for a task")
     r.add_argument("task_id")
     rp = sub.add_parser("replay", help="reconstruct exactly what a stage saw")
-    rp.add_argument("task_id"); rp.add_argument("stage")
+    rp.add_argument("task_id")
+    rp.add_argument("stage")
     c = sub.add_parser("costs", help="cost/token breakdown")
     c.add_argument("task_id")
     sub.add_parser("list", help="all tasks and their status")

@@ -9,7 +9,8 @@ Roadmap done-when: "a grep of all logs finds zero secrets."
     python3 hooks/scan_secrets.py tasks                 scan all tasks
 Exit 0 = clean, exit 1 = secrets found (so it can gate CI later).
 """
-import re, sys
+import re
+import sys
 from pathlib import Path
 
 PATTERNS = {

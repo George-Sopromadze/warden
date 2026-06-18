@@ -39,11 +39,11 @@ COST_REGRESSION_FRACTION = 0.25  # >25% cost increase trips the gate
 
 def _c(code, s):
     return f"\033[{code}m{s}\033[0m" if sys.stdout.isatty() else s
-GREEN = lambda s: _c("32", s)
-RED = lambda s: _c("31", s)
-YEL = lambda s: _c("33", s)
-DIM = lambda s: _c("2", s)
-BOLD = lambda s: _c("1", s)
+def GREEN(s): return _c("32", s)
+def RED(s): return _c("31", s)
+def YEL(s): return _c("33", s)
+def DIM(s): return _c("2", s)
+def BOLD(s): return _c("1", s)
 
 
 def load_benchmarks(only=None):
