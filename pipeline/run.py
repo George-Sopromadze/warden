@@ -1002,6 +1002,26 @@ def deliver_to_target(task_id: str) -> None:
     if commit.returncode == 0:
         print(f"[warden] deliver: {len(copied)} files -> {dest_path}, tests green, committed.")
         log_event(task_id, "delivered", {"dest": str(dest_path), "files": copied})
+        # Autopush on green: after a verified local commit, push to the target's
+        # configured remote. Opt-in via WARDEN_DELIVER_PUSH so this only fires for
+        # repos you've deliberately wired for autopush (e.g. the private study
+        # repo via its deploy-key SSH alias). Never force-pushes; a push failure
+        # is logged but does not raise, since the commit is already safe locally.
+        if _secret("WARDEN_DELIVER_PUSH") in ("1", "true", "True", "yes"):
+            branch = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                                    cwd=dest_path, capture_output=True, text=True)
+            br = branch.stdout.strip() or "main"
+            push = subprocess.run(["git", "push", "origin", br], cwd=dest_path,
+                                  capture_output=True, text=True, timeout=120)
+            if push.returncode == 0:
+                print(f"[warden] deliver: pushed {br} -> origin.")
+                log_event(task_id, "deliver_pushed", {"dest": str(dest_path),
+                                                      "branch": br})
+            else:
+                print(f"[warden] deliver: push FAILED (commit is safe locally): "
+                      f"{push.stderr[-300:]}", file=sys.stderr)
+                log_event(task_id, "deliver_push_failed", {"dest": str(dest_path),
+                          "branch": br, "stderr": push.stderr[-300:]})
     else:
         print(f"[warden] deliver: nothing to commit (no changes) in {dest_path}.")
         log_event(task_id, "deliver_nochange", {"dest": str(dest_path)})
