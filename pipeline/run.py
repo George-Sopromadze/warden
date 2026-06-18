@@ -224,6 +224,18 @@ def _normalize_artifact(stage, obj):
                 else:
                     normed.append(f)
             obj["findings"] = normed
+        # Map verdict synonyms to the canonical enum. Reviewers asking for
+        # changes sometimes say "reject"/"deny"; the schema only accepts
+        # "approve" / "request_changes". Normalize so a substantive rejection
+        # is recorded correctly rather than escalating on a word choice.
+        v = obj.get("verdict")
+        if isinstance(v, str):
+            vl = v.strip().lower()
+            if vl in ("reject", "rejected", "deny", "denied", "changes_requested",
+                      "request_change", "needs_changes", "fail", "failed"):
+                obj["verdict"] = "request_changes"
+            elif vl in ("approved", "accept", "accepted", "pass", "passed", "lgtm"):
+                obj["verdict"] = "approve"
     return obj
 
 
