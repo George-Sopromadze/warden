@@ -32,7 +32,7 @@ def ask_gemini(prompt: str, model: str = _DEFAULT_MODEL, timeout: int = 60) -> s
     """
     _load_secrets()
     key = os.environ.get("GEMINI_API_KEY", "").strip()
-    if not key or key == "PASTE_YOUR_KEY_HERE":
+    if not key:
         raise RuntimeError("GEMINI_API_KEY not found in ~/.warden/secrets.env")
 
     try:

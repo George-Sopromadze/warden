@@ -120,7 +120,7 @@ def cmd_report(task_id: str) -> None:
             extra = "" if ev.get("on_track") else RED(" — " + ", ".join(ev.get("violated_criteria", [])))
             print(f"  {DIM(t)}     {mark} goalkeeper{extra}")
         elif e == "transition":
-            print(f"  {DIM(t)}  {GREEN('→')} {ev['from']} → {BOLD(ev['to'])}")
+            print(f"  {DIM(t)}  {GREEN('->')} {ev['from']} -> {BOLD(ev['to'])}")
         elif e == "stage_failed":
             print(f"  {DIM(t)}     {RED('FAILED')} {ev['stage']}: {ev.get('reason','')}")
         elif e == "escalation":

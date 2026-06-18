@@ -172,7 +172,7 @@ def cmd_run(agent_mode: str, only=None, save_baseline=False):
         line = f"  {mark}  {r['id']:<20} {r['outcome']:<18} {r['tokens']:>7,} tok  {r['seconds']:>5}s{att}"
         print(line)
         for why in r["reasons"]:
-            print(RED(f"        ↳ {why}"))
+            print(RED(f"          - {why}"))
 
     total_tokens = sum(r["tokens"] for r in results)
     n_pass = sum(1 for r in results if r["passed"])
