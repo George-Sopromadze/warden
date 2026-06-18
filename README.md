@@ -2,7 +2,7 @@
 
 *Workflow with Agents, Rules, Determinism, Escalation, Notifications*
 
-**Multi-model review (Claude + Gemini, GPT as neutral judge) · 3 active agent roles · 7-stage pipeline · 8 deterministic gates · regression eval suite · security-hardened**
+**Multi-model review (Claude + Gemini, GPT as neutral judge) · task chains · delivery to external repos · 7-stage pipeline · 8 deterministic gates · regression eval suite · security-hardened**
 
 **An autonomous AI software pipeline that turns a plain-English task into reviewed, tested, approved code, and never merges anything a human hasn't signed off on, from their phone.**
 
@@ -51,6 +51,8 @@ Between every stage sits a gate: a bash script that inspects the real repository
 - **Phone-based control with reject-and-feedback.** Approve, reject, or view the diff from Telegram. Reject asks why, you answer in plain English, and the Worker redoes the code to address it before coming back for fresh approval.
 - **Circuit breakers.** Per-stage retry limits, a total token budget, and a stuck-detector that trips on repeated identical failures. The worst case is "halted and you're notified," never an infinite loop or a runaway bill.
 - **A regression eval suite.** Real tasks with known-good outcomes. Change a prompt or swap a model, run one command, and it tells you in numbers whether you improved or broke something.
+- **Task chains.** A sequence of dependent tasks can be driven from a single definition, so a multi-step build — each step verified through the full pipeline — runs as one coordinated chain rather than a series of manual, one-off tasks.
+- **Delivery to an external repository.** Approved output can be delivered into a separate target repo — copied in, tested there, and committed only if the tests pass — so WARDEN can build and verify code for a project that lives outside its own repository.
 - **Multi-model review with an independent judge.** Every review uses three different model families: Claude and Gemini each review the code independently, then GPT acts as a neutral judge that wrote neither review and checks every concern against the actual code. Because the judge shares no kinship with either reviewer, no model grades its own work. It catches issues a single model misses, and falls back to single-model review if a provider is unavailable.
 - **Security that's been attacked.** Each agent is confined to its workspace, secrets are blocked from tool arguments, and network access is allowlisted. I tested it with a planted prompt-injection file telling the agent to leak credentials. The agent detected it, refused, reported it, and nothing moved.
 - **Runs unattended.** It starts on boot, restarts itself after a crash, and an external heartbeat alerts your phone if the whole machine goes down.
