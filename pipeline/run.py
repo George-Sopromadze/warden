@@ -1006,6 +1006,34 @@ def deliver_to_target(task_id: str) -> None:
         print(f"[warden] deliver: nothing to commit (no changes) in {dest_path}.")
         log_event(task_id, "deliver_nochange", {"dest": str(dest_path)})
 
+    # Optional mirror: after a successful delivery, copy the whole target repo
+    # to a second location (e.g. a desktop folder) so it always matches. Runs
+    # only on success, so the mirror never receives a broken tree. Set via
+    # WARDEN_DELIVER_MIRROR in the environment or ~/.warden/secrets.env.
+    mirror = _secret("WARDEN_DELIVER_MIRROR")
+    if mirror:
+        mirror_path = Path(mirror).expanduser()
+        try:
+            mirror_path.mkdir(parents=True, exist_ok=True)
+            r = subprocess.run(
+                ["rsync", "-a", "--delete",
+                 "--exclude", "__pycache__", "--exclude", ".pytest_cache",
+                 "--exclude", ".git",
+                 f"{dest_path}/", f"{mirror_path}/"],
+                capture_output=True, text=True, timeout=120)
+            if r.returncode == 0:
+                print(f"[warden] deliver: mirrored to {mirror_path}.")
+                log_event(task_id, "mirrored", {"mirror": str(mirror_path)})
+            else:
+                print(f"[warden] deliver: mirror failed: {r.stderr[-300:]}",
+                      file=sys.stderr)
+                log_event(task_id, "mirror_failed", {"mirror": str(mirror_path),
+                                                      "stderr": r.stderr[-300:]})
+        except Exception as e:
+            print(f"[warden] deliver: mirror error: {e}", file=sys.stderr)
+            log_event(task_id, "mirror_error", {"mirror": str(mirror_path),
+                                                "error": str(e)})
+
 
 def cmd_status(task_id: str) -> None:
     print(json.dumps(load_state(task_id), indent=2))
