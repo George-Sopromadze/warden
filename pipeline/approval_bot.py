@@ -149,10 +149,35 @@ def rerun_from_implement(task_id: str, task_dir) -> None:
     resume_pipeline(task_id)
 
 
+def _chain_for_task(task_id: str):
+    """If task_id is the current step of an active chain, return the chain name.
+    Lets approval auto-advance the chain instead of stopping at one task."""
+    import glob
+    chains_dir = ROOT / "chains"
+    for sf in glob.glob(str(chains_dir / "*.state.json")):
+        try:
+            cstate = json.loads(open(sf).read())
+            name = cstate.get("chain")
+            cdef = json.loads((chains_dir / f"{name}.json").read_text())
+            step = cstate.get("step", 0)
+            if 0 <= step < len(cdef["steps"]) and cdef["steps"][step]["task_id"] == task_id:
+                return name
+        except Exception:
+            continue
+    return None
+
+
 def resume_pipeline(task_id: str) -> None:
-    subprocess.Popen([sys.executable, str(ROOT / "pipeline" / "run.py"),
-                      "run", task_id,
-                      "--agent-mode", os.environ.get("WARDEN_AGENT_MODE", "claude")])
+    mode = os.environ.get("WARDEN_AGENT_MODE", "claude")
+    chain = _chain_for_task(task_id)
+    if chain:
+        # Task is part of a chain: advance the chain, which pushes this task
+        # through merge + delivery and then creates/runs the next step.
+        subprocess.Popen([sys.executable, str(ROOT / "pipeline" / "run.py"),
+                          "chain", chain, "--agent-mode", mode])
+    else:
+        subprocess.Popen([sys.executable, str(ROOT / "pipeline" / "run.py"),
+                          "run", task_id, "--agent-mode", mode])
 
 
 def handle_message(msg: dict) -> None:

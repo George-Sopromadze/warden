@@ -601,6 +601,24 @@ def _load_telegram_cfg() -> tuple:
             cfg.get("TELEGRAM_USER_ID") or os.environ.get("TELEGRAM_USER_ID"))
 
 
+def _secret(name: str, default: str = "") -> str:
+    """Read a config value from the environment, falling back to secrets.env.
+    Lets settings like WARDEN_DELIVER_TO live in ~/.warden/secrets.env so every
+    WARDEN process honors them regardless of how it was started."""
+    val = os.environ.get(name)
+    if val:
+        return val
+    secrets_path = Path(os.environ.get("WARDEN_SECRETS",
+                                       Path.home() / ".warden" / "secrets.env"))
+    if secrets_path.exists():
+        for line in secrets_path.read_text().splitlines():
+            if "=" in line and not line.strip().startswith("#"):
+                k, _, v = line.partition("=")
+                if k.strip() == name:
+                    return v.strip().strip('"').strip("'")
+    return default
+
+
 def _send_approval_buttons(task_id: str, text: str) -> bool:
     """Inline-keyboard approval request via Bot API. False when unconfigured."""
     token, user = _load_telegram_cfg()
@@ -911,8 +929,8 @@ def deliver_to_target(task_id: str) -> None:
     history. On test failure the files are left in place (uncommitted) and the
     failure is logged, so nothing broken is silently committed.
     """
-    import os, shutil
-    dest = os.environ.get("WARDEN_DELIVER_TO")
+    import shutil
+    dest = _secret("WARDEN_DELIVER_TO")
     if not dest:
         return
     dest_path = Path(dest).expanduser()
@@ -925,6 +943,7 @@ def deliver_to_target(task_id: str) -> None:
 
     wd = task_dir(task_id) / "workdir"
     copied = []
+    skipped = []
     for sub in ("src", "tests"):
         s = wd / sub
         if not s.is_dir():
@@ -936,6 +955,13 @@ def deliver_to_target(task_id: str) -> None:
                 continue
             rel = f.relative_to(wd)
             target = dest_path / rel
+            # Deliver only files this task CREATED, never seeded dependencies.
+            # A dependency seeded in for the task to compile against already
+            # exists in the target; re-copying it risks clobbering the canonical
+            # version with a stale seed. Skip anything already present.
+            if target.exists():
+                skipped.append(str(rel))
+                continue
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(f, target)
             copied.append(str(rel))
@@ -1003,8 +1029,8 @@ def save_chain_state(name, st):
 
 
 def _seed_workdir(task_id, seeds):
-    import os, shutil
-    dest = os.environ.get("WARDEN_DELIVER_TO")
+    import shutil
+    dest = _secret("WARDEN_DELIVER_TO")
     if not dest:
         print("[warden] chain: WARDEN_DELIVER_TO unset; cannot seed deps", file=sys.stderr)
         return
